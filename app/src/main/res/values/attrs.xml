@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="PlaceView">
+        //table
+        <attr name="placesTableMargin" format="dimension"/>
+        <attr name="placeFreeColor" format="color"/>
+        <attr name="placeReservedColor" format="color"/>
+        <attr name="placePickedColor" format="color"/>
+        //rowNumber
+        <attr name="rowNumberTextSize" format="dimension"/>
+        <attr name="rowNumberTextStyle"  format="enum">
+            <enum name="normal" value="0"/>
+            <enum name="bold" value="1"/>
+            <enum name="italic" value="2"/>
+        </attr>
+        <attr name="rowNumberTextColor" format="color"/>
+        <attr name="rowNumberMargin" format="dimension"/>
+        //place
+        <attr name="placeTextSize" format="dimension"/>
+        <attr name="placeTextColor" format="dimension"/>
+        <attr name="placeTextStyle" format="enum">
+            <enum name="normal" value="0"/>
+            <enum name="bold" value="1"/>
+            <enum name="italic" value="2"/>
+        </attr>
+        <attr name="placeTextPadding" format="dimension"/>
+        <attr name="placeSpace" format="dimension"/>
+        <attr name="placeCornerRadius" format="dimension"/>
+    </declare-styleable>
+</resources>
