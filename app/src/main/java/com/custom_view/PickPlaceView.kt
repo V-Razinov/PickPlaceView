@@ -2,8 +2,8 @@ package com.custom_view
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.graphics.Color
-import android.graphics.Typeface
+import android.graphics.*
+import android.graphics.Paint.ANTI_ALIAS_FLAG
 import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.util.TypedValue
@@ -11,10 +11,10 @@ import android.view.Gravity
 import android.view.View
 import android.widget.*
 import androidx.annotation.ColorInt
-import androidx.constraintlayout.widget.ConstraintLayout
+import kotlin.math.absoluteValue
 import kotlin.random.Random
 
-class PickPlaceView : ConstraintLayout {
+class PickPlaceView : LinearLayout {
     constructor(ctx: Context) : super(ctx)
     constructor(ctx: Context, attrs: AttributeSet): super(ctx, attrs) {
         applyAttributes(attrs)
@@ -23,26 +23,31 @@ class PickPlaceView : ConstraintLayout {
         applyAttributes(attrs)
     }
 
-    private val defaultTextColor = Color.GRAY//attributes
+    private val defaultTextColor = Color.GRAY
 
-    private var screenTextSize = 14.sp
+    private var screenTextSize = 16.sp
     private var screenTextColor = Color.WHITE
+    private var screenBgColor = Color.RED
+    private var screenCornerRadius = 8.dp
+    private var screenTextPadding = 8.dp
 
-    private var tableMarginTop = 16
+    private var tableMarginTop = 16.dp
 
-    private var rowNumberTextSize = 12
+    private var rowNumberTextSize = 12.sp
     private var rowNumberTextStyle = Typeface.ITALIC
     private var rowNumberTextColor = defaultTextColor
-    private var rowNumberMargin = 8.dp
+    private var rowNumberMargin = 16.dp
+
     private var placeTextColor = defaultTextColor
-    private var placeTextSize = 14
+    private var placeTextSize = 14.sp
     private var placeTextStyle = Typeface.NORMAL
     private var placeMargin = 4.dp
     private var placePadding = 8.dp
-    private var placeCornerRadius = 8
+    private var placeCornerRadius = 8.dp
     private var placeFreeColor: Int = 0
     private var placeReservedColor: Int = 0
     private var placePickedColor: Int = 0
+    private var placeShowNumberAlways: Boolean = false
 
     private var onPlaceClickAction: (place: Place, view: PlaceView) -> Unit = { _, _ -> }
 
@@ -52,6 +57,7 @@ class PickPlaceView : ConstraintLayout {
     private lateinit var tableLayout: TableLayout
 
     init {
+        orientation = VERTICAL
         initViews()
     }
 
@@ -71,27 +77,31 @@ class PickPlaceView : ConstraintLayout {
         onPlaceClickAction = action
     }
 
+    fun getPickedPlaces() : List<Place> {
+        val pickedPlaces = mutableListOf<Place>()
+        places.forEach { row ->
+            row.filter { it.state == PlaceState.PICKED }
+                .let { pickedPlaces.addAll(it) }
+        }
+        return pickedPlaces
+    }
+
     private fun initViews() {
         screenTextView = TextView(context).apply {
             id = generateViewId()
-            layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT).apply {
-                topToTop = this@PickPlaceView.id
-                startToStart = this@PickPlaceView.id
-                endToEnd = this@PickPlaceView.id
-            }
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             text = "Экран"
-            background = getRoundedBackground(12f, Color.RED)//todo
-            textSize = screenTextSize
+            background = getRoundedBackground(screenCornerRadius.toFloat(), screenBgColor)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, screenTextSize)
             setTextColor(screenTextColor)
             gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(0, screenTextPadding, 0, screenTextPadding)
         }
         tableLayout = TableLayout(context).apply {
             id = generateViewId()
-            layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT).apply {
-                topToBottom = screenTextView.id
-                startToStart = this@PickPlaceView.id
-                endToEnd = this@PickPlaceView.id
-                setMargins(0, tableMarginTop, 0, 0)
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                setPadding(0, tableMarginTop, 0, 0)
+                weightSum = 1f
             }
         }
     }
@@ -111,15 +121,19 @@ class PickPlaceView : ConstraintLayout {
             R.styleable.PlaceView_placePickedColor,
             placePickedColor
         )
+        placeShowNumberAlways = attributes.getBoolean(
+            R.styleable.PlaceView_placeShowNumbersAlways,
+            placeShowNumberAlways
+        )
         //rowNumber
         tableMarginTop = attributes.getDimensionPixelSize(
             R.styleable.PlaceView_placesTableMargin,
             tableMarginTop
         )
-        rowNumberTextSize = attributes.getDimensionPixelSize(
+        rowNumberTextSize = attributes.getDimensionPixelOffset(
             R.styleable.PlaceView_rowNumberTextSize,
-            rowNumberTextSize
-        )
+            rowNumberTextSize.toInt()
+        ).toFloat()
         rowNumberTextStyle = attributes.getInteger(
             R.styleable.PlaceView_rowNumberTextStyle,
             rowNumberTextStyle
@@ -135,9 +149,9 @@ class PickPlaceView : ConstraintLayout {
         //place
         placeTextSize = attributes.getDimensionPixelSize(
             R.styleable.PlaceView_placeTextSize,
-            placeTextSize
-        )
-        placeTextColor = attributes.getDimensionPixelSize(
+            placeTextSize.toInt()
+        ).toFloat()
+        placeTextColor = attributes.getColor(
             R.styleable.PlaceView_placeTextColor,
             defaultTextColor
         )
@@ -174,7 +188,7 @@ class PickPlaceView : ConstraintLayout {
                 gravity = Gravity.CENTER_VERTICAL
             }
             val placesLL = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
+                orientation = HORIZONTAL
                 layoutParams = TableRow.LayoutParams(
                     TableRow.LayoutParams.MATCH_PARENT,
                     TableRow.LayoutParams.WRAP_CONTENT
@@ -185,7 +199,9 @@ class PickPlaceView : ConstraintLayout {
             }
             row.forEach { place ->
                 placesLL.addView(PlaceView(context, place).apply {
-                    setOnClickListener(onPlaceClickAction)
+                    if (place.state != PlaceState.RESERVED) {
+                        setOnClickListener(onPlaceClickAction)
+                    }
                 })
             }
             tableRow.addView(getRowNumberTextView(rowIndex + 1, true))
@@ -202,10 +218,14 @@ class PickPlaceView : ConstraintLayout {
             TableRow.LayoutParams.WRAP_CONTENT
         ).apply {
             weight = 1f
+            if (isAtStart)
+                setMargins(0, 0, rowNumberMargin, 0)
+            else
+                setMargins(rowNumberMargin, 0, 0, 0)
         }
         gravity = (if (isAtStart) Gravity.START else Gravity.END) or Gravity.CENTER_VERTICAL
         text = "$rowNumber ряд"
-        textSize = placeTextSize.toFloat()
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, rowNumberTextSize)
         setTypeface(null, rowNumberTextStyle)
         setTextColor(rowNumberTextColor)
     }
@@ -227,21 +247,15 @@ class PickPlaceView : ConstraintLayout {
 
     private fun Int.asColorStateList(): ColorStateList = ColorStateList.valueOf(this)
 
-    private inline val Int.sp: Float get() = TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_DIP,
+    private inline val Number.sp: Float get() = TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_SP,
         this.toFloat(),
         context.resources.displayMetrics
     )
 
-    private inline val Int.dp: Int get() = TypedValue.applyDimension(
+    private inline val Number.dp: Int get() = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_DIP,
         this.toFloat(),
-        context.resources.displayMetrics
-    ).toInt()
-
-    private inline val Float.dp: Int get() = TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_DIP,
-        this,
         context.resources.displayMetrics
     ).toInt()
 
@@ -249,8 +263,6 @@ class PickPlaceView : ConstraintLayout {
         private val childView: View
 
         init {
-            childView = getChildView(data)
-            setState(data.state)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -258,15 +270,14 @@ class PickPlaceView : ConstraintLayout {
                 gravity = Gravity.CENTER
                 setMarginAll(placeMargin)
             }
+            childView = getChildView(data)
+            setState(data.state)
             addView(childView)
+            resizeChild()
+        }
+
+        private fun resizeChild() {
             childView.apply {
-                layoutParams = LayoutParams(
-                    LayoutParams.WRAP_CONTENT,
-                    LayoutParams.WRAP_CONTENT
-                ).apply {
-                    gravity = Gravity.CENTER
-                    setPaddingAll(placePadding)
-                }
                 post {
                     val size = if (measuredHeight > measuredWidth) measuredHeight else measuredWidth
                     layoutParams = LayoutParams(size, size).apply {
@@ -278,20 +289,27 @@ class PickPlaceView : ConstraintLayout {
         }
 
         fun setOnClickListener(action: (place: Place, view: PlaceView) -> Unit) {
+            onPlaceClickAction = action
             if (data.state != PlaceState.EMPTY) {
-                super.setOnClickListener { onPlaceClickAction(data, this) }
+                super.setOnClickListener {
+                    if (data.state == PlaceState.FREE)
+                        setState(PlaceState.PICKED)
+                    else
+                        setState(PlaceState.FREE)
+                    onPlaceClickAction(data, this)
+                }
             }
         }
 
         fun setState(newState: PlaceState) {
             data.state = newState
-            (childView as? TextView)?.setTextColor(if (newState.showText) placeTextColor else Color.TRANSPARENT)
+            val textColor = if (needToShowText(newState)) placeTextColor else Color.TRANSPARENT
+            (childView as? TextView)?.setTextColor(textColor)
             background = getRoundedBackground(placeCornerRadius.toFloat(), getBgColor(newState))
         }
 
-        fun switchStateToNext() {
-            setState(data.state.getNextState())
-        }
+        private fun needToShowText(state: PlaceState) =
+            state != PlaceState.EMPTY && (placeShowNumberAlways || state == PlaceState.PICKED)
 
         @ColorInt
         private fun getBgColor(newState: PlaceState): Int = when (newState) {
@@ -302,13 +320,115 @@ class PickPlaceView : ConstraintLayout {
         }.let { if (it == 0) newState.color else it }
 
         private fun getChildView(data: Place): View = TextView(context).apply {
+            layoutParams = LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT
+            ).apply {
+                gravity = Gravity.CENTER
+                setPaddingAll(placePadding)
+            }
             text = (data.column + 1).toString()
-            textSize = placeTextSize.toFloat()
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, placeTextSize)
             setTypeface(null, placeTextStyle)
             setTextColor(placeTextColor)
             gravity = Gravity.CENTER
         }
     }
+}
+
+class PlacesView: View {
+    constructor(context: Context) : super(context)
+    constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
+
+    private val bgPaint = Paint(ANTI_ALIAS_FLAG)
+    private val textPaint = Paint(ANTI_ALIAS_FLAG)
+    private val textBounds = Rect()
+    private var places: List<List<Place>> = emptyList()
+    private val cornerRadius = 8f
+    private val padding = 8.dp
+    private val margin = 4f
+    private val rects = mutableListOf<Rect>()
+
+    private fun initValues() {
+        val mexLength = (places.size - 1).toString()
+        textPaint.apply {
+            isAntiAlias = true
+            textSize = 16.sp
+            color = Color.BLACK
+            measureText(mexLength)
+            getTextBounds(mexLength, 0, mexLength.length, textBounds)
+        }
+        bgPaint.apply {
+            isAntiAlias = true
+            color = Color.LTGRAY
+        }
+    }
+
+    fun setData(places: List<List<Place>>) {
+        this.places = places
+        initValues()
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val textMaxSize = maxOf(textBounds.width().absoluteValue, textBounds.height().absoluteValue)
+        val viewSize = padding.times(2).plus(textMaxSize.dp)
+
+        canvas.apply {
+            var startX: Float
+            var startY: Float
+
+            places.forEachIndexed { indexRow, row ->
+
+                startY = y.plus(viewSize * indexRow + padding * indexRow)
+                val pointY = startY + padding
+
+                row.forEachIndexed { indexPlace, place ->
+                    startX = x.plus(viewSize * indexPlace + padding * indexPlace)
+                    val pointX = startX + padding
+                    val index = indexPlace.plus(1).times(20).toString()
+                    drawRoundRect(
+                        pointX,
+                        pointY,
+                        pointX + viewSize,
+                        pointY + viewSize,
+                        cornerRadius,
+                        cornerRadius,
+                        bgPaint
+                    )
+                    textPaint.apply {
+                        measureText(index)
+                        getTextBounds(index, 0, index.length, textBounds)
+                    }
+                    drawText(
+                        index,
+                        0,
+                        index.length,
+                        pointX + viewSize.div(2) - textBounds.width().div(2),
+                        pointY + viewSize.div(2) + textBounds.height().div(2),
+                        textPaint
+                    )
+                }
+            }
+        }
+    }
+
+    private val Number.float get() = this.toFloat()
+
+    private inline val Number.sp: Float get() = TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_SP,
+        this.toFloat(),
+        context.resources.displayMetrics
+    )
+
+    private inline val Number.dp: Float get() = TypedValue.applyDimension(
+        TypedValue.COMPLEX_UNIT_DIP,
+        this.toFloat(),
+        context.resources.displayMetrics
+    )
+
+    private fun Int.asColorStateList(): ColorStateList = ColorStateList.valueOf(this)
 }
 
 data class Place(
@@ -317,11 +437,11 @@ data class Place(
     val row: Int
 )
 
-enum class PlaceState(@ColorInt val color: Int, val showText: Boolean) {
-    FREE(Color.LTGRAY, false), //свободное место
-    RESERVED(Color.RED, false), //зарезервированное
-    PICKED(Color.GREEN, true), //купленное или выбранное
-    EMPTY(Color.TRANSPARENT, false); //для пустого места
+enum class PlaceState(@ColorInt val color: Int) {
+    FREE(Color.LTGRAY), //свободное место
+    RESERVED(Color.RED), //зарезервированное
+    PICKED(Color.GREEN), //купленное или выбранное
+    EMPTY(Color.TRANSPARENT); //для пустого места
 
     fun getNextState() : PlaceState {
         val states = values()
@@ -337,7 +457,7 @@ enum class PlaceState(@ColorInt val color: Int, val showText: Boolean) {
     companion object {
         fun getRandomState(): PlaceState {
             val states = values()
-            return enumValueOf(states[Random.nextInt(0, states.size)].name)
+            return enumValueOf(states[Random.nextInt(0, states.size - 2)].name)
         }
     }
 }

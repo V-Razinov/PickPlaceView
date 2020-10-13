@@ -1,35 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<HorizontalScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:custom="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:clipToPadding="false"
-    android:padding="16dp"
+    android:fillViewport="true"
     tools:context=".MainActivity">
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content">
 
-        <com.custom_view.PickPlaceView
+        <!--        <com.custom_view.PickPlaceView-->
+        <!--            android:id="@+id/pick_place_view"-->
+        <!--            android:layout_width="match_parent"-->
+        <!--            android:layout_height="wrap_content"-->
+        <!--            app:layout_constraintEnd_toEndOf="parent"-->
+        <!--            app:layout_constraintStart_toStartOf="parent"-->
+        <!--            app:layout_constraintTop_toTopOf="parent"-->
+        <!--            custom:placeCornerRadius="8dp"-->
+        <!--            custom:placeShowNumbersAlways="true"-->
+        <!--            custom:placeTextColor="@color/white"-->
+        <!--            custom:placeTextSize="18sp"-->
+        <!--            custom:placesTableMargin="16dp"-->
+        <!--            custom:rowNumberMargin="16dp"-->
+        <!--            custom:rowNumberTextColor="@color/black"-->
+        <!--            custom:rowNumberTextSize="12sp"-->
+        <!--            custom:rowNumberTextStyle="italic" />-->
+
+
+        <com.custom_view.PlacesView
             android:id="@+id/pick_place_view"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:layout_constraintTop_toTopOf="parent"
-            custom:placeCornerRadius="8dp"
-            custom:placesTableMargin="16dp"
-            custom:rowNumberTextColor="@color/black"
-            custom:rowNumberTextSize="12sp"
-            custom:rowNumberTextStyle="bold" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/picked_places"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/pick_place_view" />
 
         <Button
             android:id="@+id/update"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:layout_constraintStart_toStartOf="parent"
             android:text="Обновить"
-            app:layout_constraintTop_toBottomOf="@+id/pick_place_view"/>
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/picked_places" />
     </androidx.constraintlayout.widget.ConstraintLayout>
-</ScrollView>
+</HorizontalScrollView>

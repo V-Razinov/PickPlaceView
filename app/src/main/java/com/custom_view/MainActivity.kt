@@ -12,17 +12,20 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        pick_place_view.setOnPlaceClickAction { place, placeView ->
-            val nextState = place.state.getNextState()
-            Toast.makeText(this, "${place.state.name} -> ${nextState.name}", Toast.LENGTH_SHORT).show()
-            placeView.setState(nextState)
-        }
+//        pick_place_view.setData(generateData(10, 5))
+//        pick_place_view.setOnPlaceClickAction { place, view ->
+//            val result = StringBuilder()
+//            pick_place_view.getPickedPlaces().forEach {
+//                result.append("ряд: ${it.row+1} место: ${it.column+1}\n")
+//            }
+//            picked_places.text = result
+//
+//        }
+//        update.setOnClickListener {
+//            val rand = Random
+//            pick_place_view.setData(generateData(rand.nextInt(5, 10), rand.nextInt(3, 5)))
+//        }
         pick_place_view.setData(generateData(10, 5))
-
-        update.setOnClickListener {
-            val rand = Random
-            pick_place_view.setData(generateData(rand.nextInt(5, 10), rand.nextInt(3, 5)))
-        }
     }
 
     private fun generateData(columns: Int, rows: Int) =

@@ -3,9 +3,6 @@
     <declare-styleable name="PlaceView">
         //table
         <attr name="placesTableMargin" format="dimension"/>
-        <attr name="placeFreeColor" format="color"/>
-        <attr name="placeReservedColor" format="color"/>
-        <attr name="placePickedColor" format="color"/>
         //rowNumber
         <attr name="rowNumberTextSize" format="dimension"/>
         <attr name="rowNumberTextStyle"  format="enum">
@@ -17,7 +14,7 @@
         <attr name="rowNumberMargin" format="dimension"/>
         //place
         <attr name="placeTextSize" format="dimension"/>
-        <attr name="placeTextColor" format="dimension"/>
+        <attr name="placeTextColor" format="color"/>
         <attr name="placeTextStyle" format="enum">
             <enum name="normal" value="0"/>
             <enum name="bold" value="1"/>
@@ -26,5 +23,9 @@
         <attr name="placeTextPadding" format="dimension"/>
         <attr name="placeSpace" format="dimension"/>
         <attr name="placeCornerRadius" format="dimension"/>
+        <attr name="placeFreeColor" format="color"/>
+        <attr name="placeReservedColor" format="color"/>
+        <attr name="placePickedColor" format="color"/>
+        <attr name="placeShowNumbersAlways" format="boolean"/>
     </declare-styleable>
 </resources>
