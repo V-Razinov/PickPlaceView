@@ -21,25 +21,25 @@ class MainActivity : AppCompatActivity() {
 //            picked_places.text = result
 //
 //        }
-//        update.setOnClickListener {
-//            val rand = Random
-//            pick_place_view.setData(generateData(rand.nextInt(5, 10), rand.nextInt(3, 5)))
-//        }
-        pick_place_view.setData(generateData(10, 5))
+        update.setOnClickListener {
+            val rand = Random
+            pick_place_view.setData(generateData(rand.nextInt(3, 7), rand.nextInt(3, 5)))
+        }
+        pick_place_view.setData(generateData(5, 5))
     }
 
     private fun generateData(columns: Int, rows: Int) =
         mutableListOf<List<Place>>().apply {
             val rand = Random
             val hiddenColumnIndexes = mutableListOf<Int>()
-            repeat(when {
-                columns < 5 -> 1
-                columns < 8 -> 2
-                columns <= 10 -> 3
-                else -> 0
-            }) {
-                hiddenColumnIndexes.add(rand.nextInt(0, columns - 1))
-            }
+//            repeat(when {
+//                columns < 5 -> 1
+//                columns < 8 -> 2
+//                columns <= 10 -> 3
+//                else -> 0
+//            }) {
+//                hiddenColumnIndexes.add(rand.nextInt(0, columns - 1))
+//            }
             repeat(rows) { rowIndex ->
                 val row = mutableListOf<Place>()
                 repeat(columns) { columnIndex ->

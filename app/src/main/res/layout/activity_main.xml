@@ -7,8 +7,9 @@
     android:fillViewport="true"
     tools:context=".MainActivity">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:layout_width="wrap_content"
+        android:orientation="vertical"
         android:layout_height="wrap_content">
 
         <!--        <com.custom_view.PickPlaceView-->
@@ -36,15 +37,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <TextView
-            android:id="@+id/picked_places"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@color/black"
-            android:textSize="14sp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/pick_place_view" />
-
         <Button
             android:id="@+id/update"
             android:layout_width="wrap_content"
@@ -52,5 +44,5 @@
             android:text="Обновить"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/picked_places" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 </HorizontalScrollView>

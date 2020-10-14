@@ -11,7 +11,6 @@ import android.view.Gravity
 import android.view.View
 import android.widget.*
 import androidx.annotation.ColorInt
-import kotlin.math.absoluteValue
 import kotlin.random.Random
 
 class PickPlaceView : LinearLayout {
@@ -334,101 +333,6 @@ class PickPlaceView : LinearLayout {
             gravity = Gravity.CENTER
         }
     }
-}
-
-class PlacesView: View {
-    constructor(context: Context) : super(context)
-    constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
-
-    private val bgPaint = Paint(ANTI_ALIAS_FLAG)
-    private val textPaint = Paint(ANTI_ALIAS_FLAG)
-    private val textBounds = Rect()
-    private var places: List<List<Place>> = emptyList()
-    private val cornerRadius = 8f
-    private val padding = 8.dp
-    private val margin = 4f
-    private val rects = mutableListOf<Rect>()
-
-    private fun initValues() {
-        val mexLength = (places.size - 1).toString()
-        textPaint.apply {
-            isAntiAlias = true
-            textSize = 16.sp
-            color = Color.BLACK
-            measureText(mexLength)
-            getTextBounds(mexLength, 0, mexLength.length, textBounds)
-        }
-        bgPaint.apply {
-            isAntiAlias = true
-            color = Color.LTGRAY
-        }
-    }
-
-    fun setData(places: List<List<Place>>) {
-        this.places = places
-        initValues()
-        invalidate()
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val textMaxSize = maxOf(textBounds.width().absoluteValue, textBounds.height().absoluteValue)
-        val viewSize = padding.times(2).plus(textMaxSize.dp)
-
-        canvas.apply {
-            var startX: Float
-            var startY: Float
-
-            places.forEachIndexed { indexRow, row ->
-
-                startY = y.plus(viewSize * indexRow + padding * indexRow)
-                val pointY = startY + padding
-
-                row.forEachIndexed { indexPlace, place ->
-                    startX = x.plus(viewSize * indexPlace + padding * indexPlace)
-                    val pointX = startX + padding
-                    val index = indexPlace.plus(1).times(20).toString()
-                    drawRoundRect(
-                        pointX,
-                        pointY,
-                        pointX + viewSize,
-                        pointY + viewSize,
-                        cornerRadius,
-                        cornerRadius,
-                        bgPaint
-                    )
-                    textPaint.apply {
-                        measureText(index)
-                        getTextBounds(index, 0, index.length, textBounds)
-                    }
-                    drawText(
-                        index,
-                        0,
-                        index.length,
-                        pointX + viewSize.div(2) - textBounds.width().div(2),
-                        pointY + viewSize.div(2) + textBounds.height().div(2),
-                        textPaint
-                    )
-                }
-            }
-        }
-    }
-
-    private val Number.float get() = this.toFloat()
-
-    private inline val Number.sp: Float get() = TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_SP,
-        this.toFloat(),
-        context.resources.displayMetrics
-    )
-
-    private inline val Number.dp: Float get() = TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_DIP,
-        this.toFloat(),
-        context.resources.displayMetrics
-    )
-
-    private fun Int.asColorStateList(): ColorStateList = ColorStateList.valueOf(this)
 }
 
 data class Place(
