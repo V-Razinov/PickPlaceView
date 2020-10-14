@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
             val rand = Random
             pick_place_view.setData(generateData(rand.nextInt(3, 7), rand.nextInt(3, 5)))
         }
-        pick_place_view.setData(generateData(5, 5))
+        pick_place_view.setData(generateData(7, 7))
     }
 
     private fun generateData(columns: Int, rows: Int) =

@@ -6,20 +6,17 @@ import android.content.res.ColorStateList
 import android.graphics.*
 import android.graphics.Paint.ANTI_ALIAS_FLAG
 import android.util.AttributeSet
-import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
-import android.widget.Toast
+import java.lang.Float.NaN
 import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.properties.Delegates
+
+private const val ACTION_CLICK_TIME = 150L
 
 class PlacesView : View {
     constructor(context: Context) : super(context)
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
-
-    private var ACTION_CLICK_TIME = 150L
 
     private val placeBGPaint = Paint(ANTI_ALIAS_FLAG)
     private val placeTextPaint = Paint(ANTI_ALIAS_FLAG)
@@ -40,7 +37,15 @@ class PlacesView : View {
     private var placeSize = 0f
     private var rowNumberWidth = 0f
 
+    private var enableScrolling = false
+
     private var places: List<List<Place>> = emptyList()
+
+    //todo формить получше
+    private var startX = NaN
+    private var minX = 0f
+    private var maxX = 0f
+    private var baseX = x
 
     private fun initValues() {
         val maxRowNumber = (places.size - 1).toString()
@@ -61,13 +66,14 @@ class PlacesView : View {
         }
         placeNumberSize = maxOf(textBounds.width(), textBounds.height())
         placeSize = padding * 2 + placeNumberSize.dp
-        rowNumberWidth = rowNumberBounds.width().float
+        rowNumberWidth = rowNumberBounds.width().toFloat()
         setBackgroundColor(Color.CYAN)
     }
 
     fun setData(places: List<List<Place>>) {
         this.places = places
         initValues()
+        x = baseX
         requestLayout()
     }
 
@@ -75,14 +81,27 @@ class PlacesView : View {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         //todo View Padding
         val maxColumns = places.maxOf { it.size }
-        val w = (rowNumberWidth + rowNumberRealMargin) * 2 +
-                maxColumns.run { this * placeSize + this * margin + margin }
+        val w = (rowNumberWidth + rowNumberMargin) * 2 +
+                maxColumns.run { this * placeSize + this * margin } + margin
         val h = places.size.run { this * placeSize + this * margin } + margin
 
-        val diffs = resolveSizeAndState(w.toInt(), widthMeasureSpec, 1) - w
+        val resolvedWidth = resolveSize(w.toInt(), widthMeasureSpec)
+        val diffs = resolvedWidth - w
         additionRowNumberMargin = if (diffs > 0) diffs else 0f
+        enableScrolling = w > resolvedWidth
 
-        setMeasuredDimension(w.toInt() + additionRowNumberMargin.toInt(), h.toInt())
+        val realWidth = x + w + additionRowNumberMargin
+        baseX = x
+
+        abs(w - resolvedWidth).run {
+            if (this > 0) {
+                minX
+                minX = -this
+                maxX = baseX
+            }
+        }
+
+        setMeasuredDimension(realWidth.toInt(), h.toInt())
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -95,9 +114,8 @@ class PlacesView : View {
             places.forEachIndexed { indexRow, row ->
                 if (indexRow != 0)
                     startY += placeSize + margin
-                val rowText = "${indexRow + 1} ряд"
-                val rowNumberY =
-                    startY + margin + placeSize / 2 + rowNumberBounds.height() / 2
+                val rowText = "${indexRow + 1} ряд"//todo
+                val rowNumberY = startY + margin + placeSize / 2 + rowNumberBounds.height() / 2
 
                 drawText(rowText, 0, rowText.length, x, rowNumberY, rowNumberPaint)
                 startX = x + rowNumberBounds.width() + rowNumberRealMargin
@@ -110,7 +128,7 @@ class PlacesView : View {
 
                     val pointX = startX + margin
                     val index = (indexPlace + 1).toString()
-
+                    place.rect.setCoords(pointX, pointY, pointX + placeSize, pointY + placeSize)
                     drawRoundRect(
                         pointX,
                         pointY,
@@ -118,22 +136,12 @@ class PlacesView : View {
                         pointY + placeSize,
                         cornerRadius,
                         cornerRadius,
-                        placeBGPaint.apply {
-                            color = when (place.state) {
-                                PlaceState.FREE -> Color.GRAY
-                                PlaceState.RESERVED -> Color.RED
-                                PlaceState.PICKED -> Color.GREEN
-                                PlaceState.EMPTY -> Color.TRANSPARENT
-                            }
-                        }
+                        placeBGPaint.applyState(place.state)
                     )
                     placeTextPaint.apply {
                         getTextBounds(index, 0, index.length, textBounds)
-                        color = if (place.state == PlaceState.EMPTY) {
-                            Color.TRANSPARENT
-                        } else {
-                            Color.BLACK
-                        }
+                        color =
+                            if (place.state == PlaceState.EMPTY) Color.TRANSPARENT else Color.BLACK
                     }
                     drawText(
                         index,
@@ -150,122 +158,83 @@ class PlacesView : View {
         }
     }
 
+    private fun Paint.applyState(state: PlaceState): Paint {
+        color = when (state) {
+            PlaceState.FREE -> Color.GRAY
+            PlaceState.RESERVED -> Color.RED
+            PlaceState.PICKED -> Color.GREEN
+            PlaceState.EMPTY -> Color.TRANSPARENT
+        }
+        return this
+    }
+
+    private fun Rect.setCoords(left: Float, top: Float, right: Float, bottom: Float) {
+        this.left = left.toInt()
+        this.top = top.toInt()
+        this.right = right.toInt()
+        this.bottom = bottom.toInt()
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        var startX = Float.NaN
-        var prevX = Float.NaN
-        var prevY = Float.NaN
-        var times = 0
-        var isDragging by Delegates.observable(false) { _, _, newValue ->
-            parent.requestDisallowInterceptTouchEvent(newValue)
-        }
         return when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                Log.d("MyLogs", "ACTION_DOWN")
-                prevX = startX
-                prevY = event.y
                 true
             }
             MotionEvent.ACTION_MOVE -> {
-                Log.d("MyLogs", "ACTION_MOVE")
-                if (event.eventTime - event.downTime < ACTION_CLICK_TIME) {
-                    prevX = event.x
-                    prevY = event.y
+                if (!enableScrolling) {
                     return false
                 }
-                Log.d("MyLogs", "ACTION_MOVE")
-                times = tryCatchDragging(isDragging, prevX, event, prevY, times)
-                isDragging = times > 5
-                if (!isDragging) {
-                    return false
-                }
-
                 if (startX.isNaN()) {
                     startX = event.x
                 }
-
-                val nextX = x + event.x - startX
-                translationX = nextX
-
-                prevX = event.x
-                prevY = event.y
+                if (event.eventTime - event.downTime > ACTION_CLICK_TIME) {
+                    val nextX = x + event.x - startX
+                    x = when {
+                        nextX > maxX -> maxX
+                        nextX < minX -> minX
+                        else -> nextX
+                    }
+                }
                 true
             }
             MotionEvent.ACTION_UP -> {
-                Log.d("MyLogs", "ACTION_UP")
+                startX = NaN
                 if (event.eventTime - event.downTime < ACTION_CLICK_TIME) {
-                    performClick()
                     handleClick(event)
+                    true
+                } else {
+                    false
                 }
-                isDragging = false
-                startX = Float.NaN
-                times = 0
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                startX = NaN
                 false
             }
-//            MotionEvent.ACTION_CANCEL -> {
-//                Log.d("MyLogs", "ACTION_CANCEL")
-//                isDragging = false
-//                startX = Float.NaN
-//                times = 0
-//                false
-//            }
-            else -> false
+            else -> super.onTouchEvent(event)
         }
     }
 
     private fun handleClick(event: MotionEvent) {
         val clickX = event.x
         val clickY = event.y
-        val placesRect = Rect(
-            (x + rowNumberWidth + rowNumberRealMargin).toInt(),
-            y.toInt(),
-            (measuredWidth - rowNumberWidth - rowNumberRealMargin).toInt(),
-            height
-        )
-        val inXZone = clickX >= placesRect.left && clickX <= placesRect.right
-        val inYZone = clickY >= placesRect.top && clickY <= placesRect.bottom
-        if (inXZone && inYZone) {
-            val columns = places.maxOf { it.size }
-            val rows = places.size
-            val columnWidth = placesRect.width() / columns
-            val rowWidth = placesRect.height() / rows
-            val column = ceil((clickX - placesRect.left) / columnWidth).toInt()
-            val row = ceil((clickY - placesRect.top) / rowWidth).toInt()
-            if (column <= columns && row <= rows) {
-                places.getOrNull(row - 1)
-                    ?.getOrNull(column - 1)
-                    ?.let { place ->
-                        if (place.state != PlaceState.EMPTY && place.state != PlaceState.RESERVED) {
-                            place.state = if (place.state == PlaceState.PICKED)
-                                PlaceState.FREE
-                            else
-                                PlaceState.PICKED
-                            invalidate()
-                        }
-                        Toast.makeText(context, "ряд $row, место $column", Toast.LENGTH_SHORT)
-                            .show()
+        //todo в зависимисти от позиции клика можно уменьшить область поиска
+
+        places.forEach { row ->
+            row.find { it.rect.inThis(clickX, clickY) }
+                ?.let { place ->
+                    if (place.state != PlaceState.EMPTY && place.state != PlaceState.RESERVED) {
+                        place.state = if (place.state == PlaceState.PICKED)
+                            PlaceState.FREE
+                        else
+                            PlaceState.PICKED
+                        invalidate()
                     }
-            }
+                }
         }
     }
 
-    private fun tryCatchDragging(
-        isDragging: Boolean,
-        prevX: Float,
-        event: MotionEvent,
-        prevY: Float,
-        times: Int
-    ): Int {
-        var times1 = times
-        if (!isDragging)
-            if (abs((abs(prevX) - abs(event.x))) >= (abs(abs(prevY - abs(event.y)))))
-                times1++
-            else
-                times1 = 0
-        return times1
-    }
-
-    private val Number.float get() = this.toFloat()
+    private fun Rect.inThis(x: Float, y: Float) = x >= left && x <= right && y >= top && y <= bottom
 
     private inline val Number.sp: Float
         get() = TypedValue.applyDimension(

@@ -339,7 +339,9 @@ data class Place(
     var state: PlaceState,
     val column: Int,
     val row: Int
-)
+) {
+    val rect = Rect(0, 0, 0, 0)
+}
 
 enum class PlaceState(@ColorInt val color: Int) {
     FREE(Color.LTGRAY), //свободное место
