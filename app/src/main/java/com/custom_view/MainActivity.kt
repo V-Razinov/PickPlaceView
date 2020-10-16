@@ -11,21 +11,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-//        pick_place_view.setData(generateData(10, 5))
-//        pick_place_view.setOnPlaceClickAction { place, view ->
-//            val result = StringBuilder()
-//            pick_place_view.getPickedPlaces().forEach {
-//                result.append("ряд: ${it.row+1} место: ${it.column+1}\n")
-//            }
-//            picked_places.text = result
-//
+//        update.setOnClickListener {
+//            val rand = Random
+//            pick_place_view.setData(generateData(rand.nextInt(11, 12), rand.nextInt(11, 12)))
 //        }
-        update.setOnClickListener {
-            val rand = Random
-            pick_place_view.setData(generateData(rand.nextInt(3, 7), rand.nextInt(3, 5)))
-        }
-        pick_place_view.setData(generateData(7, 7))
+        pick_place_view.setData(generateData(12, 12))
     }
 
     private fun generateData(columns: Int, rows: Int) =

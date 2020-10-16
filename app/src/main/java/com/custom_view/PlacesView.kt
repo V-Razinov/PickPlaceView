@@ -6,17 +6,19 @@ import android.content.res.ColorStateList
 import android.graphics.*
 import android.graphics.Paint.ANTI_ALIAS_FLAG
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import java.lang.Float.NaN
 import kotlin.math.abs
-
-private const val ACTION_CLICK_TIME = 150L
 
 class PlacesView : View {
     constructor(context: Context) : super(context)
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
+    constructor(context: Context?, attrs: AttributeSet?, defStyle: Int) : super(context, attrs, defStyle)
+
 
     private val placeBGPaint = Paint(ANTI_ALIAS_FLAG)
     private val placeTextPaint = Paint(ANTI_ALIAS_FLAG)
@@ -24,6 +26,7 @@ class PlacesView : View {
 
     private val textBounds = Rect()
     private val rowNumberBounds = Rect()
+    private val rowTextBound = Rect()
 
     private val cornerRadius = 8f
     private val padding = 8.dp
@@ -35,100 +38,94 @@ class PlacesView : View {
 
     private var placeNumberSize = 0
     private var placeSize = 0f
-    private var rowNumberWidth = 0f
+    private var rowNumberColumnWidth = 0f
 
     private var enableScrolling = false
 
     private var places: List<List<Place>> = emptyList()
 
-    //todo формить получше
+    //todo оформить получше
     private var startX = NaN
+    private var startY = NaN
     private var minX = 0f
+    private var minY = 0f
     private var maxX = 0f
-    private var baseX = x
+    private var maxY = 0f
+    private var baseX = NaN
+    private var baseY = NaN
 
-    private fun initValues() {
-        val maxRowNumber = (places.size - 1).toString()
-        placeTextPaint.apply {
-            textSize = 16.sp
-            color = Color.BLACK
-            getTextBounds(maxRowNumber, 0, maxRowNumber.length, textBounds)
+    override fun requestLayout() {
+        if (!baseX.isNaN()) {
+            x = baseX
         }
-        placeBGPaint.apply {
-            color = Color.LTGRAY
-        }
-        rowNumberPaint.apply {
-            val maxRowNumberLength = "$maxRowNumber ряд"
-            textSize = 14.sp
-            color = Color.BLACK
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
-            getTextBounds(maxRowNumberLength, 0, maxRowNumberLength.length, rowNumberBounds)
-        }
-        placeNumberSize = maxOf(textBounds.width(), textBounds.height())
-        placeSize = padding * 2 + placeNumberSize.dp
-        rowNumberWidth = rowNumberBounds.width().toFloat()
-        setBackgroundColor(Color.CYAN)
-    }
-
-    fun setData(places: List<List<Place>>) {
-        this.places = places
-        initValues()
-        x = baseX
-        requestLayout()
+        super.requestLayout()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        //todo View Padding
         val maxColumns = places.maxOf { it.size }
-        val w = (rowNumberWidth + rowNumberMargin) * 2 +
+        val w = (rowNumberColumnWidth + rowNumberMargin) * 2 +
                 maxColumns.run { this * placeSize + this * margin } + margin
         val h = places.size.run { this * placeSize + this * margin } + margin
 
         val resolvedWidth = resolveSize(w.toInt(), widthMeasureSpec)
+        val resolvedHeight = resolveSize(h.toInt(), heightMeasureSpec)
+
         val diffs = resolvedWidth - w
         additionRowNumberMargin = if (diffs > 0) diffs else 0f
-        enableScrolling = w > resolvedWidth
 
-        val realWidth = x + w + additionRowNumberMargin
-        baseX = x
 
-        abs(w - resolvedWidth).run {
-            if (this > 0) {
-                minX
-                minX = -this
-                maxX = baseX
-            }
+        if (baseX.isNaN()) {
+            baseX = x
+        }
+        if (baseY.isNaN()) {
+            baseY = y
         }
 
+        val realWidth = x + w + additionRowNumberMargin
+        enableScrolling = w > resolvedWidth || h > resolvedHeight
+        if (enableScrolling) {
+            abs(w - resolvedWidth).let {
+                if (it > 0) {
+                    minX = -it
+                    maxX = x
+                }
+            }
+            abs(h - resolvedHeight).let {
+                if (it > 0) {
+                    minY = -it
+                    maxY = y
+                }
+            }
+        }
         setMeasuredDimension(realWidth.toInt(), h.toInt())
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.apply {
-            //todo padding
-            var startX: Float = x
+            var startX: Float = baseX
             var startY: Float = y
-
             places.forEachIndexed { indexRow, row ->
-                if (indexRow != 0)
+                if (indexRow != 0) {
                     startY += placeSize + margin
+                }
                 val rowText = "${indexRow + 1} ряд"//todo
                 val rowNumberY = startY + margin + placeSize / 2 + rowNumberBounds.height() / 2
 
-                drawText(rowText, 0, rowText.length, x, rowNumberY, rowNumberPaint)
-                startX = x + rowNumberBounds.width() + rowNumberRealMargin
+                drawText(rowText, 0, rowText.length, baseX, rowNumberY, rowNumberPaint)
+                startX = baseX + rowNumberBounds.width() + rowNumberRealMargin
 
                 val pointY = startY + margin
 
                 row.forEachIndexed { indexPlace, place ->
-                    if (indexPlace != 0)
+                    if (indexPlace != 0) {
                         startX += placeSize + margin
+                    }
 
                     val pointX = startX + margin
                     val index = (indexPlace + 1).toString()
-                    place.rect.setCoords(pointX, pointY, pointX + placeSize, pointY + placeSize)
+                    place.rect.setBounds(pointX, pointY, pointX + placeSize, pointY + placeSize)
                     drawRoundRect(
                         pointX,
                         pointY,
@@ -153,9 +150,60 @@ class PlacesView : View {
                     )
                 }
                 startX += margin * 2 + placeSize + rowNumberRealMargin
-                drawText(rowText, 0, rowText.length, startX, rowNumberY, rowNumberPaint)
+                rowNumberPaint.getTextBounds(rowText, 0, rowText.length, rowTextBound)
+                drawText(rowText, 0, rowText.length, startX + (rowNumberColumnWidth - rowTextBound.width()), rowNumberY, rowNumberPaint)
             }
         }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        return when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                startX = event.x
+                startY = event.y
+                true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (!enableScrolling) {
+                    return false
+                }
+                val nextX = x + event.x - startX
+                val nextY = y + event.y - startY
+                x = when {
+                    nextX > maxX -> maxX
+                    nextX < minX -> minX
+                    else -> nextX
+                }
+                y = when {
+                    nextY > maxY -> maxY
+                    nextY < minY -> minY
+                    else -> nextY
+                }
+                true
+            }
+            MotionEvent.ACTION_UP -> {
+                startX = NaN
+                if (event.eventTime - event.downTime < ViewConfiguration.getTapTimeout()) {
+                    handleClick(event)
+                    return true
+                }
+                false
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                startX = NaN
+                true
+            }
+            else -> {
+                super.onTouchEvent(event)
+            }
+        }
+    }
+
+    fun setData(places: List<List<Place>>) {
+        this.places = places
+        initValues()
+        requestLayout()
     }
 
     private fun Paint.applyState(state: PlaceState): Paint {
@@ -168,51 +216,34 @@ class PlacesView : View {
         return this
     }
 
-    private fun Rect.setCoords(left: Float, top: Float, right: Float, bottom: Float) {
+    private fun Rect.setBounds(left: Float, top: Float, right: Float, bottom: Float) {
         this.left = left.toInt()
         this.top = top.toInt()
         this.right = right.toInt()
         this.bottom = bottom.toInt()
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        return when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (!enableScrolling) {
-                    return false
-                }
-                if (startX.isNaN()) {
-                    startX = event.x
-                }
-                if (event.eventTime - event.downTime > ACTION_CLICK_TIME) {
-                    val nextX = x + event.x - startX
-                    x = when {
-                        nextX > maxX -> maxX
-                        nextX < minX -> minX
-                        else -> nextX
-                    }
-                }
-                true
-            }
-            MotionEvent.ACTION_UP -> {
-                startX = NaN
-                if (event.eventTime - event.downTime < ACTION_CLICK_TIME) {
-                    handleClick(event)
-                    true
-                } else {
-                    false
-                }
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                startX = NaN
-                false
-            }
-            else -> super.onTouchEvent(event)
+    private fun initValues() {
+        val maxRowNumber = (places.size - 1).toString()
+        placeTextPaint.apply {
+            textSize = 16.sp
+            color = Color.BLACK
+            getTextBounds(maxRowNumber, 0, maxRowNumber.length, textBounds)
         }
+        placeBGPaint.apply {
+            color = Color.LTGRAY
+        }
+        rowNumberPaint.apply {
+            val maxRowNumberLength = "$maxRowNumber ряд"
+            textSize = 14.sp
+            color = Color.BLACK
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+            getTextBounds(maxRowNumberLength, 0, maxRowNumberLength.length, rowNumberBounds)
+        }
+        placeNumberSize = maxOf(textBounds.width(), textBounds.height())
+        placeSize = padding * 2 + placeNumberSize.dp
+        rowNumberColumnWidth = rowNumberBounds.width().toFloat()
+        setBackgroundColor(Color.CYAN)
     }
 
     private fun handleClick(event: MotionEvent) {
