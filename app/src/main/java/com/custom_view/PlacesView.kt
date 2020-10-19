@@ -2,11 +2,9 @@ package com.custom_view
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.res.ColorStateList
 import android.graphics.*
 import android.graphics.Paint.ANTI_ALIAS_FLAG
 import android.util.AttributeSet
-import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
@@ -14,37 +12,68 @@ import android.view.ViewConfiguration
 import java.lang.Float.NaN
 import kotlin.math.abs
 
+
 class PlacesView : View {
     constructor(context: Context) : super(context)
-    constructor(context: Context, attrs: AttributeSet) : super(context, attrs)
-    constructor(context: Context?, attrs: AttributeSet?, defStyle: Int) : super(context, attrs, defStyle)
-
+    constructor(context: Context, attrs: AttributeSet) : super(context, attrs) { applyAttributes(attrs) }
+    constructor(context: Context?, attrs: AttributeSet, defStyle: Int) : super(
+        context,
+        attrs,
+        defStyle
+    ) { applyAttributes(attrs) }
 
     private val placeBGPaint = Paint(ANTI_ALIAS_FLAG)
     private val placeTextPaint = Paint(ANTI_ALIAS_FLAG)
     private val rowNumberPaint = Paint(ANTI_ALIAS_FLAG)
+    private val screenTextPaint = Paint(ANTI_ALIAS_FLAG)
+    private val screenBgPaint = Paint(ANTI_ALIAS_FLAG)
 
-    private val textBounds = Rect()
+    private val placeTextBounds = Rect()
     private val rowNumberBounds = Rect()
     private val rowTextBound = Rect()
+    private val screenTextBounds = Rect()
 
-    private val cornerRadius = 8f
-    private val padding = 8.dp
-    private val margin = 8.dp
-    private val rowNumberMargin = 16.dp
-    private var additionRowNumberMargin = 0.dp
-    private val rowNumberRealMargin
-        get() = rowNumberMargin + additionRowNumberMargin / 2
+    private val screenText = "Экран"
+    private val TAP_TIME = ViewConfiguration.getTapTimeout()
+
+    private var screenTextColor = Color.WHITE
+    private var screenBgColor = Color.RED
+    private var placeTextColor = Color.BLACK
+    private var placeBgColor = Color.LTGRAY
+    private var placeFreeColor = Color.LTGRAY
+    private var placeReservedColor = Color.RED
+    private var placePickedColor = Color.GREEN
+    private var rowNumberTextColor = Color.BLACK
+
+    private var placeShowTextAlways = true
+
+    private var screenTextSize = 18.sp
+    private var screenTextPadding = 8.dp
+
+    private var placeCornerRadius = 8.dp
+    private var placeTextPadding = 8.dp
+    private var placeMargin = 8.dp
+    private var placeTextSize = 16.dp
+
+    private var rowNumberTextSize = 14.sp
+    private var rowNumberMargin = 16.dp
+    private var rowAdditionNumberMargin = 0.dp
+    private val rowNumberRealMargin get() = rowNumberMargin + rowAdditionNumberMargin
+
+    private var screenTextTypeFace = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    private var placeTypeFace = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+    private var rowNumberTypeFace = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
 
     private var placeNumberSize = 0
     private var placeSize = 0f
     private var rowNumberColumnWidth = 0f
 
-    private var enableScrolling = false
+    private var enableHorizontalScroll = false
+    private var enableVerticalScroll = false
 
     private var places: List<List<Place>> = emptyList()
 
-    //todo оформить получше
+    //touch event
     private var startX = NaN
     private var startY = NaN
     private var minX = 0f
@@ -65,15 +94,15 @@ class PlacesView : View {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         val maxColumns = places.maxOf { it.size }
         val w = (rowNumberColumnWidth + rowNumberMargin) * 2 +
-                maxColumns.run { this * placeSize + this * margin } + margin
-        val h = places.size.run { this * placeSize + this * margin } + margin
+                maxColumns * (placeSize + placeMargin) + placeMargin
+        val h = screenTextPadding * 2 + screenTextBounds.height() +
+                places.size * (placeSize + placeMargin) + placeMargin
 
         val resolvedWidth = resolveSize(w.toInt(), widthMeasureSpec)
         val resolvedHeight = resolveSize(h.toInt(), heightMeasureSpec)
 
         val diffs = resolvedWidth - w
-        additionRowNumberMargin = if (diffs > 0) diffs else 0f
-
+        rowAdditionNumberMargin = if (diffs > 0) diffs / 2 else 0f
 
         if (baseX.isNaN()) {
             baseX = x
@@ -82,15 +111,18 @@ class PlacesView : View {
             baseY = y
         }
 
-        val realWidth = x + w + additionRowNumberMargin
-        enableScrolling = w > resolvedWidth || h > resolvedHeight
-        if (enableScrolling) {
+        val realWidth = w + rowAdditionNumberMargin * 2
+        enableHorizontalScroll = w > resolvedWidth
+        enableVerticalScroll = h > resolvedHeight
+        if (enableHorizontalScroll) {
             abs(w - resolvedWidth).let {
                 if (it > 0) {
                     minX = -it
                     maxX = x
                 }
             }
+        }
+        if (enableVerticalScroll) {
             abs(h - resolvedHeight).let {
                 if (it > 0) {
                     minY = -it
@@ -105,53 +137,75 @@ class PlacesView : View {
         super.onDraw(canvas)
         canvas.apply {
             var startX: Float = baseX
-            var startY: Float = y
+            var startY: Float = baseY
+            val screenBgHeight = (startY + screenTextBounds.height() + screenTextPadding * 2)
+            drawRoundRect(
+                startX, startY,
+                startX + width, screenBgHeight,
+                placeCornerRadius,
+                placeCornerRadius,
+                screenBgPaint
+            )
+            drawText(
+                screenText,
+                0, screenText.length,
+                width / 2 - screenTextBounds.width().toFloat() / 2,
+                screenBgHeight / 2 + screenTextPadding / 2,
+                screenTextPaint
+            )
+            startY += screenBgHeight
             places.forEachIndexed { indexRow, row ->
                 if (indexRow != 0) {
-                    startY += placeSize + margin
+                    startY += placeSize + placeMargin
                 }
                 val rowText = "${indexRow + 1} ряд"//todo
-                val rowNumberY = startY + margin + placeSize / 2 + rowNumberBounds.height() / 2
+                val rowNumberY = startY + placeMargin + placeSize / 2 + rowNumberBounds.height() / 2
 
                 drawText(rowText, 0, rowText.length, baseX, rowNumberY, rowNumberPaint)
                 startX = baseX + rowNumberBounds.width() + rowNumberRealMargin
 
-                val pointY = startY + margin
+                val pointY = startY + placeMargin
 
                 row.forEachIndexed { indexPlace, place ->
                     if (indexPlace != 0) {
-                        startX += placeSize + margin
+                        startX += placeSize + placeMargin
                     }
-
-                    val pointX = startX + margin
+                    val pointX = startX + placeMargin
                     val index = (indexPlace + 1).toString()
                     place.rect.setBounds(pointX, pointY, pointX + placeSize, pointY + placeSize)
+
                     drawRoundRect(
                         pointX,
                         pointY,
                         pointX + placeSize,
                         pointY + placeSize,
-                        cornerRadius,
-                        cornerRadius,
+                        placeCornerRadius,
+                        placeCornerRadius,
                         placeBGPaint.applyState(place.state)
                     )
                     placeTextPaint.apply {
-                        getTextBounds(index, 0, index.length, textBounds)
-                        color =
-                            if (place.state == PlaceState.EMPTY) Color.TRANSPARENT else Color.BLACK
+                        getTextBounds(index, 0, index.length, placeTextBounds)
+                        color = getPlaceTextColor(place.state)
                     }
                     drawText(
                         index,
                         0,
                         index.length,
-                        pointX + placeSize / 2 - textBounds.width() / 2,
-                        pointY + placeSize / 2 + textBounds.height() / 2,
+                        pointX + placeSize / 2 - placeTextBounds.width() / 2,
+                        pointY + placeSize / 2 + placeTextBounds.height() / 2,
                         placeTextPaint
                     )
                 }
-                startX += margin * 2 + placeSize + rowNumberRealMargin
+                startX += placeMargin * 2 + placeSize + rowNumberRealMargin
                 rowNumberPaint.getTextBounds(rowText, 0, rowText.length, rowTextBound)
-                drawText(rowText, 0, rowText.length, startX + (rowNumberColumnWidth - rowTextBound.width()), rowNumberY, rowNumberPaint)
+                drawText(
+                    rowText,
+                    0,
+                    rowText.length,
+                    startX + (rowNumberColumnWidth - rowTextBound.width()),
+                    rowNumberY,
+                    rowNumberPaint
+                )
             }
         }
     }
@@ -165,26 +219,31 @@ class PlacesView : View {
                 true
             }
             MotionEvent.ACTION_MOVE -> {
-                if (!enableScrolling) {
+                if (!(enableHorizontalScroll || enableVerticalScroll) ||
+                    event.eventTime - event.downTime < TAP_TIME) {
                     return false
                 }
-                val nextX = x + event.x - startX
-                val nextY = y + event.y - startY
-                x = when {
-                    nextX > maxX -> maxX
-                    nextX < minX -> minX
-                    else -> nextX
+                if (enableHorizontalScroll) {
+                    val nextX = x + event.x - startX
+                    x = when {
+                        nextX > maxX -> maxX
+                        nextX < minX -> minX
+                        else -> nextX
+                    }
                 }
-                y = when {
-                    nextY > maxY -> maxY
-                    nextY < minY -> minY
-                    else -> nextY
+                if (enableVerticalScroll) {
+                    val nextY = y + event.y - startY
+                    y = when {
+                        nextY > maxY -> maxY
+                        nextY < minY -> minY
+                        else -> nextY
+                    }
                 }
                 true
             }
             MotionEvent.ACTION_UP -> {
                 startX = NaN
-                if (event.eventTime - event.downTime < ViewConfiguration.getTapTimeout()) {
+                if (event.eventTime - event.downTime < TAP_TIME) {
                     handleClick(event)
                     return true
                 }
@@ -206,11 +265,150 @@ class PlacesView : View {
         requestLayout()
     }
 
+    private fun applyAttributes(attrs: AttributeSet) {
+        context.theme.obtainStyledAttributes(attrs, R.styleable.PlacesView, 0, 0).apply {
+            screenTextSize = getDimensionPixelOffset(
+                R.styleable.PlacesView_screenTextSize,
+                screenTextSize.toInt()
+            ).toFloat()
+            screenTextPadding = getDimensionPixelOffset(
+                R.styleable.PlacesView_screenTextPadding,
+                screenTextPadding.toInt()
+            ).toFloat()
+            screenTextTypeFace = getInteger(
+                R.styleable.PlacesView_screenTextStyle,
+                screenTextTypeFace.style
+            ).let(::getTypeFace)
+            screenTextColor = getColor(
+                R.styleable.PlacesView_screenTextColor,
+                screenTextColor
+            )
+            screenBgColor = getColor(
+                R.styleable.PlacesView_screenBgColor,
+                screenBgColor
+            )
+            placeCornerRadius = getDimensionPixelOffset(
+                R.styleable.PlacesView_placeCornerRadius,
+                placeCornerRadius.toInt()
+            ).toFloat()
+            placeTextPadding = getDimensionPixelOffset(
+                R.styleable.PlacesView_placeTextPadding,
+                placeTextPadding.toInt()
+            ).toFloat()
+            placeMargin = getDimensionPixelOffset(
+                R.styleable.PlacesView_placeMargin,
+                placeMargin.toInt()
+            ).toFloat()
+            placeTextSize = getDimensionPixelOffset(
+                R.styleable.PlacesView_placeTextSize,
+                placeTextSize.toInt()
+            ).toFloat()
+            placeTextColor = getColor(
+                R.styleable.PlacesView_placeTextColor,
+                placeTextColor
+            )
+            placeTypeFace = getInteger(
+                R.styleable.PlacesView_placeTextStyle,
+                placeTypeFace.style
+            ).let(::getTypeFace)
+            placeShowTextAlways = getBoolean(
+                R.styleable.PlacesView_placeShowNumbersAlways,
+                placeShowTextAlways
+            )
+            placeFreeColor = getColor(
+                R.styleable.PlacesView_placeFreeColor,
+                placeFreeColor
+            )
+            placeReservedColor = getColor(
+                R.styleable.PlacesView_placeReservedColor,
+                placeReservedColor
+            )
+            placePickedColor = getColor(
+                R.styleable.PlacesView_placePickedColor,
+                placePickedColor
+            )
+            rowNumberMargin = getDimensionPixelOffset(
+                R.styleable.PlacesView_rowNumberMargin,
+                rowNumberMargin.toInt()
+            ).toFloat()
+            rowNumberTextSize = getDimensionPixelOffset(
+                R.styleable.PlacesView_rowNumberTextSize,
+                rowNumberTextSize.toInt()
+            ).toFloat()
+            rowNumberTextColor = getColor(
+                R.styleable.PlacesView_rowNumberTextColor,
+                rowNumberTextColor
+            )
+            rowNumberTypeFace = getInteger(
+                R.styleable.PlacesView_rowNumberTextStyle,
+                rowNumberTypeFace.style
+            ).let(::getTypeFace)
+        }
+    }
+
+    private fun initValues() {
+        screenBgPaint.color = screenBgColor
+        screenTextPaint.apply {
+            color = screenTextColor
+            textSize = screenTextSize
+            typeface = screenTextTypeFace
+            getTextBounds(screenText, 0, screenText.length, screenTextBounds)
+        }
+        val maxRowNumber = (places.size - 1).toString()
+        placeTextPaint.apply {
+            textSize = placeTextSize
+            color = placeTextColor
+            getTextBounds(maxRowNumber, 0, maxRowNumber.length, placeTextBounds)
+        }
+        placeBGPaint.color = placeBgColor
+        rowNumberPaint.apply {
+            val maxRowNumberLength = "$maxRowNumber ряд"
+            textSize = rowNumberTextSize
+            color = rowNumberTextColor
+            typeface = rowNumberTypeFace
+            getTextBounds(maxRowNumberLength, 0, maxRowNumberLength.length, rowNumberBounds)
+        }
+        placeNumberSize = maxOf(placeTextBounds.width(), placeTextBounds.height())
+        placeSize = placeTextPadding * 2 + placeNumberSize.dp
+        rowNumberColumnWidth = rowNumberBounds.width().toFloat()
+        setBackgroundColor(Color.CYAN)//todo ctrl+y
+    }
+
+    private fun handleClick(event: MotionEvent) {
+        val clickX = event.x
+        val clickY = event.y
+
+        //todo в зависимисти от позиции клика можно уменьшить область поиска
+        places.forEach { row ->
+            row.find { it.rect.inBounds(clickX, clickY) }
+                ?.let { place ->
+                    if (place.state != PlaceState.EMPTY && place.state != PlaceState.RESERVED) {
+                        place.state = if (place.state == PlaceState.PICKED) {
+                            PlaceState.FREE
+                        } else {
+                            PlaceState.PICKED
+                        }
+                        invalidate()
+                    }
+                }
+        }
+    }
+
+    private fun getPlaceTextColor(state: PlaceState): Int {
+        return when(state) {
+            PlaceState.EMPTY -> Color.TRANSPARENT
+            PlaceState.PICKED -> placeTextColor
+            else -> if (placeShowTextAlways) placeTextColor else Color.TRANSPARENT
+        }
+    }
+
+    private fun getTypeFace(typeFaceInt: Int) = Typeface.create(Typeface.DEFAULT, typeFaceInt)
+
     private fun Paint.applyState(state: PlaceState): Paint {
         color = when (state) {
-            PlaceState.FREE -> Color.GRAY
-            PlaceState.RESERVED -> Color.RED
-            PlaceState.PICKED -> Color.GREEN
+            PlaceState.FREE -> placeFreeColor
+            PlaceState.RESERVED -> placeReservedColor
+            PlaceState.PICKED -> placePickedColor
             PlaceState.EMPTY -> Color.TRANSPARENT
         }
         return this
@@ -223,49 +421,7 @@ class PlacesView : View {
         this.bottom = bottom.toInt()
     }
 
-    private fun initValues() {
-        val maxRowNumber = (places.size - 1).toString()
-        placeTextPaint.apply {
-            textSize = 16.sp
-            color = Color.BLACK
-            getTextBounds(maxRowNumber, 0, maxRowNumber.length, textBounds)
-        }
-        placeBGPaint.apply {
-            color = Color.LTGRAY
-        }
-        rowNumberPaint.apply {
-            val maxRowNumberLength = "$maxRowNumber ряд"
-            textSize = 14.sp
-            color = Color.BLACK
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
-            getTextBounds(maxRowNumberLength, 0, maxRowNumberLength.length, rowNumberBounds)
-        }
-        placeNumberSize = maxOf(textBounds.width(), textBounds.height())
-        placeSize = padding * 2 + placeNumberSize.dp
-        rowNumberColumnWidth = rowNumberBounds.width().toFloat()
-        setBackgroundColor(Color.CYAN)
-    }
-
-    private fun handleClick(event: MotionEvent) {
-        val clickX = event.x
-        val clickY = event.y
-        //todo в зависимисти от позиции клика можно уменьшить область поиска
-
-        places.forEach { row ->
-            row.find { it.rect.inThis(clickX, clickY) }
-                ?.let { place ->
-                    if (place.state != PlaceState.EMPTY && place.state != PlaceState.RESERVED) {
-                        place.state = if (place.state == PlaceState.PICKED)
-                            PlaceState.FREE
-                        else
-                            PlaceState.PICKED
-                        invalidate()
-                    }
-                }
-        }
-    }
-
-    private fun Rect.inThis(x: Float, y: Float) = x >= left && x <= right && y >= top && y <= bottom
+    private fun Rect.inBounds(x: Float, y: Float) = x >= left && x <= right && y >= top && y <= bottom
 
     private inline val Number.sp: Float
         get() = TypedValue.applyDimension(
@@ -280,6 +436,4 @@ class PlacesView : View {
             this.toFloat(),
             context.resources.displayMetrics
         )
-
-    private fun Int.asColorStateList(): ColorStateList = ColorStateList.valueOf(this)
 }

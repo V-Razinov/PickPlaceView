@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="PlaceView">
+    <declare-styleable name="PlacesView">
+        //screen
+        <attr name="screenTextSize" format="dimension"/>
+        <attr name="screenTextColor" format="color"/>
+        <attr name="screenBgColor" format="color"/>
+        <attr name="screenTextPadding" format="dimension"/>
+        <attr name="screenTextStyle" format="enum">
+            <enum name="normal" value="0"/>
+            <enum name="bold" value="1"/>
+            <enum name="italic" value="2"/>
+        </attr>
         //table
         <attr name="placesTableMargin" format="dimension"/>
         //rowNumber
@@ -21,7 +31,7 @@
             <enum name="italic" value="2"/>
         </attr>
         <attr name="placeTextPadding" format="dimension"/>
-        <attr name="placeSpace" format="dimension"/>
+        <attr name="placeMargin" format="dimension"/>
         <attr name="placeCornerRadius" format="dimension"/>
         <attr name="placeFreeColor" format="color"/>
         <attr name="placeReservedColor" format="color"/>
