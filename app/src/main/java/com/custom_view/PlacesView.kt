@@ -71,9 +71,6 @@ class PlacesView : View {
     private var enableVerticalScroll = false
 
     private var realWidth: Float = NaN
-
-    private var places: List<List<Place>> = emptyList()
-
     //touch event
     private var startScrollX = scrollX
     private var startScrollY = scrollY
@@ -83,6 +80,9 @@ class PlacesView : View {
     private var minY = 0f
     private var maxX = 0f
     private var maxY = 0f
+
+    private var places: List<List<Place>> = emptyList()
+    private var onPlaceClick: (Place) -> Unit = { }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -99,8 +99,10 @@ class PlacesView : View {
         rowAdditionNumberMargin = if (diffs > 0) diffs / 2 else 0f
 
         realWidth = w + rowAdditionNumberMargin * 2
+
         enableHorizontalScroll = w > resolvedWidth
         enableVerticalScroll = h > resolvedHeight
+
         if (enableHorizontalScroll) {
             abs(w - resolvedWidth).let {
                 if (it > 0) {
@@ -126,18 +128,19 @@ class PlacesView : View {
             var startX = 0f
             var startY = 0f
             val screenBgHeight = (startY + screenTextBounds.height() + screenTextPadding * 2)
+            val screenBgWidth = startX + realWidth
+            val screenTextX = realWidth / 2 - screenTextBounds.width().toFloat() / 2
+            val screenTextY = screenBgHeight / 2 + screenTextPadding / 2
             drawRoundRect(
                 startX, startY,
-                startX + realWidth, screenBgHeight,
-                placeCornerRadius,
-                placeCornerRadius,
+                screenBgWidth, screenBgHeight,
+                placeCornerRadius, placeCornerRadius,
                 screenBgPaint
             )
             drawText(
                 screenText,
                 0, screenText.length,
-                realWidth / 2 - screenTextBounds.width().toFloat() / 2,
-                screenBgHeight / 2 + screenTextPadding / 2,
+                screenTextX, screenTextY,
                 screenTextPaint
             )
             startY += screenBgHeight
@@ -170,17 +173,20 @@ class PlacesView : View {
                             placeCornerRadius, placeCornerRadius,
                             placeBGPaint.applyState(place.state)
                         )
-                        placeTextPaint.apply {
-                            getTextBounds(index, 0, index.length, placeTextBounds)
-                            color = getPlaceTextColor(place.state)
+                        if (needToShowText(place.state)) {
+                            placeTextPaint.apply {
+                                getTextBounds(index, 0, index.length, placeTextBounds)
+                                color = getPlaceTextColor(place.state)
+                            }
+                            val placeTextX = pointX + placeSize / 2 - placeTextBounds.width() / 2
+                            val placeTextY = pointY + placeSize / 2 + placeTextBounds.height() / 2
+                            drawText(
+                                index,
+                                0, index.length,
+                                placeTextX, placeTextY,
+                                placeTextPaint
+                            )
                         }
-                        drawText(
-                            index,
-                            0, index.length,
-                            pointX + placeSize / 2 - placeTextBounds.width() / 2,
-                            pointY + placeSize / 2 + placeTextBounds.height() / 2,
-                            placeTextPaint
-                        )
                     }
                 }
                 startX += placeMargin * 2 + placeSize + rowNumberRealMargin
@@ -188,8 +194,7 @@ class PlacesView : View {
                 drawText(
                     rowText,
                     0, rowText.length,
-                    startX + (rowNumberColumnWidth - rowTextBound.width()),
-                    rowNumberY,
+                    startX + (rowNumberColumnWidth - rowTextBound.width()), rowNumberY,
                     rowNumberPaint
                 )
             }
@@ -248,8 +253,31 @@ class PlacesView : View {
 
     fun setData(places: List<List<Place>>) {
         this.places = places
+        scrollX = 0
+        scrollY = 0
         initValues()
         requestLayout()
+    }
+
+    fun setOnPlaceClickAction(onPlaceClick: (Place) -> Unit) {
+        this.onPlaceClick = onPlaceClick
+    }
+
+    fun getPlaces(state: PlaceState = PlaceState.PICKED): List<Place> {
+        val places = mutableListOf<Place>()
+        this.places.forEach { row ->
+            row.forEach { place ->
+                if (place.state == state) {
+                    places.add(place)
+                }
+            }
+        }
+        return places
+    }
+
+    fun setShowPlaceNumberAlways(always: Boolean) {
+        placeShowTextAlways = always
+        invalidate()
     }
 
     private fun applyAttributes(attrs: AttributeSet) {
@@ -349,7 +377,7 @@ class PlacesView : View {
         }
         placeBGPaint.color = placeBgColor
         rowNumberPaint.apply {
-            val maxRowNumberLength = "$maxRowNumber ряд"
+            val maxRowNumberLength = "$maxRowNumber ряд"//todo
             color = rowNumberTextColor
             textSize = rowNumberTextSize
             typeface = rowNumberTypeFace
@@ -364,14 +392,16 @@ class PlacesView : View {
     private fun handleClick(event: MotionEvent) {
         val clickX = event.x + scrollX
         val clickY = event.y + scrollY
-
-        places.find { row ->
-            row.find { it.rect.inYBounds(clickY) } != null
-        }?.let { row ->
+        //Ищем ряд
+        places.find { row -> row.find { it.rect.inYBounds(clickY) } != null }?.let { row ->
+            //Ищем место
             row.find { it.rect.inXBounds(clickX) }?.let { place ->
-                if (place.state != PlaceState.EMPTY && place.state != PlaceState.RESERVED) {
-                    place.state = if (place.state == PlaceState.PICKED) PlaceState.FREE else PlaceState.PICKED
-                    invalidate()
+                if (place.state != PlaceState.EMPTY) {
+                    onPlaceClick(place)
+                    if (place.state != PlaceState.RESERVED) {
+                        place.state = if (place.state == PlaceState.PICKED) PlaceState.FREE else PlaceState.PICKED
+                        invalidate()
+                    }
                 }
             }
         }
@@ -386,6 +416,14 @@ class PlacesView : View {
     }
 
     private fun getTypeFace(typeFaceInt: Int) = Typeface.create(Typeface.DEFAULT, typeFaceInt)
+
+    private fun needToShowText(state: PlaceState): Boolean {
+        if (state == PlaceState.EMPTY)
+            return false
+        if (placeShowTextAlways || state == PlaceState.PICKED)
+            return true
+        return false
+    }
 
     private fun Paint.applyState(state: PlaceState): Paint {
         color = when (state) {

@@ -31,9 +31,10 @@ enum class PlaceState(@ColorInt val color: Int) {
     }
 
     companion object {
-        fun getRandomState(): PlaceState {
+        fun getRandomState(includeEmpty: Boolean): PlaceState {
             val states = values()
-            return enumValueOf(states[Random.nextInt(0, states.size)].name)
+            val endIndex = if (includeEmpty) states.size else states.size - 1
+            return enumValueOf(states[Random.nextInt(0, endIndex)].name)
         }
     }
 }
