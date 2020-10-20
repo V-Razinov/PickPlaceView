@@ -12,15 +12,14 @@ import android.view.ViewConfiguration
 import java.lang.Float.NaN
 import kotlin.math.abs
 
-
 class PlacesView : View {
     constructor(context: Context) : super(context)
-    constructor(context: Context, attrs: AttributeSet) : super(context, attrs) { applyAttributes(attrs) }
-    constructor(context: Context?, attrs: AttributeSet, defStyle: Int) : super(
-        context,
-        attrs,
-        defStyle
-    ) { applyAttributes(attrs) }
+    constructor(context: Context, attrs: AttributeSet) : super(context, attrs) {
+        applyAttributes(attrs)
+    }
+    constructor(context: Context?, attrs: AttributeSet, defStyle: Int) : super(context, attrs, defStyle) {
+        applyAttributes(attrs)
+    }
 
     private val placeBGPaint = Paint(ANTI_ALIAS_FLAG)
     private val placeTextPaint = Paint(ANTI_ALIAS_FLAG)
@@ -64,31 +63,26 @@ class PlacesView : View {
     private var placeTypeFace = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
     private var rowNumberTypeFace = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
 
-    private var placeNumberSize = 0
+    private var placeNumberSize = 0f
     private var placeSize = 0f
     private var rowNumberColumnWidth = 0f
 
     private var enableHorizontalScroll = false
     private var enableVerticalScroll = false
 
+    private var realWidth: Float = NaN
+
     private var places: List<List<Place>> = emptyList()
 
     //touch event
+    private var startScrollX = scrollX
+    private var startScrollY = scrollY
     private var startX = NaN
     private var startY = NaN
     private var minX = 0f
     private var minY = 0f
     private var maxX = 0f
     private var maxY = 0f
-    private var baseX = NaN
-    private var baseY = NaN
-
-    override fun requestLayout() {
-        if (!baseX.isNaN()) {
-            x = baseX
-        }
-        super.requestLayout()
-    }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -104,14 +98,7 @@ class PlacesView : View {
         val diffs = resolvedWidth - w
         rowAdditionNumberMargin = if (diffs > 0) diffs / 2 else 0f
 
-        if (baseX.isNaN()) {
-            baseX = x
-        }
-        if (baseY.isNaN()) {
-            baseY = y
-        }
-
-        val realWidth = w + rowAdditionNumberMargin * 2
+        realWidth = w + rowAdditionNumberMargin * 2
         enableHorizontalScroll = w > resolvedWidth
         enableVerticalScroll = h > resolvedHeight
         if (enableHorizontalScroll) {
@@ -130,18 +117,18 @@ class PlacesView : View {
                 }
             }
         }
-        setMeasuredDimension(realWidth.toInt(), h.toInt())
+        setMeasuredDimension(resolvedWidth, resolvedHeight)
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.apply {
-            var startX: Float = baseX
-            var startY: Float = baseY
+            var startX = 0f
+            var startY = 0f
             val screenBgHeight = (startY + screenTextBounds.height() + screenTextPadding * 2)
             drawRoundRect(
                 startX, startY,
-                startX + width, screenBgHeight,
+                startX + realWidth, screenBgHeight,
                 placeCornerRadius,
                 placeCornerRadius,
                 screenBgPaint
@@ -149,7 +136,7 @@ class PlacesView : View {
             drawText(
                 screenText,
                 0, screenText.length,
-                width / 2 - screenTextBounds.width().toFloat() / 2,
+                realWidth / 2 - screenTextBounds.width().toFloat() / 2,
                 screenBgHeight / 2 + screenTextPadding / 2,
                 screenTextPaint
             )
@@ -161,8 +148,8 @@ class PlacesView : View {
                 val rowText = "${indexRow + 1} ряд"//todo
                 val rowNumberY = startY + placeMargin + placeSize / 2 + rowNumberBounds.height() / 2
 
-                drawText(rowText, 0, rowText.length, baseX, rowNumberY, rowNumberPaint)
-                startX = baseX + rowNumberBounds.width() + rowNumberRealMargin
+                drawText(rowText, 0, rowText.length, 0f, rowNumberY, rowNumberPaint)
+                startX = 0f + rowNumberBounds.width() + rowNumberRealMargin
 
                 val pointY = startY + placeMargin
 
@@ -171,37 +158,36 @@ class PlacesView : View {
                         startX += placeSize + placeMargin
                     }
                     val pointX = startX + placeMargin
-                    val index = (indexPlace + 1).toString()
-                    place.rect.setBounds(pointX, pointY, pointX + placeSize, pointY + placeSize)
 
-                    drawRoundRect(
-                        pointX,
-                        pointY,
-                        pointX + placeSize,
-                        pointY + placeSize,
-                        placeCornerRadius,
-                        placeCornerRadius,
-                        placeBGPaint.applyState(place.state)
-                    )
-                    placeTextPaint.apply {
-                        getTextBounds(index, 0, index.length, placeTextBounds)
-                        color = getPlaceTextColor(place.state)
+                    if (place.state != PlaceState.EMPTY) {
+                        val index = (indexPlace + 1).toString()
+                        val endPointX = pointX + placeSize
+                        val endPointT = pointY + placeSize
+                        place.rect.setBounds(pointX, pointY, endPointX, endPointT)
+                        drawRoundRect(
+                            pointX, pointY,
+                            endPointX, endPointT,
+                            placeCornerRadius, placeCornerRadius,
+                            placeBGPaint.applyState(place.state)
+                        )
+                        placeTextPaint.apply {
+                            getTextBounds(index, 0, index.length, placeTextBounds)
+                            color = getPlaceTextColor(place.state)
+                        }
+                        drawText(
+                            index,
+                            0, index.length,
+                            pointX + placeSize / 2 - placeTextBounds.width() / 2,
+                            pointY + placeSize / 2 + placeTextBounds.height() / 2,
+                            placeTextPaint
+                        )
                     }
-                    drawText(
-                        index,
-                        0,
-                        index.length,
-                        pointX + placeSize / 2 - placeTextBounds.width() / 2,
-                        pointY + placeSize / 2 + placeTextBounds.height() / 2,
-                        placeTextPaint
-                    )
                 }
                 startX += placeMargin * 2 + placeSize + rowNumberRealMargin
                 rowNumberPaint.getTextBounds(rowText, 0, rowText.length, rowTextBound)
                 drawText(
                     rowText,
-                    0,
-                    rowText.length,
+                    0, rowText.length,
                     startX + (rowNumberColumnWidth - rowTextBound.width()),
                     rowNumberY,
                     rowNumberPaint
@@ -214,36 +200,37 @@ class PlacesView : View {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         return when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                startScrollX = scrollX
+                startScrollY = scrollY
                 startX = event.x
                 startY = event.y
                 true
             }
             MotionEvent.ACTION_MOVE -> {
-                if (!(enableHorizontalScroll || enableVerticalScroll) ||
-                    event.eventTime - event.downTime < TAP_TIME) {
-                    return false
+                if (event.duration < TAP_TIME) {
+                    return true
                 }
                 if (enableHorizontalScroll) {
-                    val nextX = x + event.x - startX
-                    x = when {
-                        nextX > maxX -> maxX
-                        nextX < minX -> minX
+                    val nextX = startScrollX + startX - event.x
+                    scrollX = when {
+                        -nextX > maxX -> -maxX
+                        -nextX < minX -> -minX
                         else -> nextX
-                    }
+                    }.toInt()
                 }
                 if (enableVerticalScroll) {
-                    val nextY = y + event.y - startY
-                    y = when {
-                        nextY > maxY -> maxY
-                        nextY < minY -> minY
+                    val nextY = startScrollY + startY - event.y
+                    scrollY = when {
+                        -nextY > maxY -> -maxY
+                        -nextY < minY -> -minY
                         else -> nextY
-                    }
+                    }.toInt()
                 }
                 true
             }
             MotionEvent.ACTION_UP -> {
                 startX = NaN
-                if (event.eventTime - event.downTime < TAP_TIME) {
+                if (event.duration < TAP_TIME) {
                     handleClick(event)
                     return true
                 }
@@ -356,41 +343,37 @@ class PlacesView : View {
         }
         val maxRowNumber = (places.size - 1).toString()
         placeTextPaint.apply {
-            textSize = placeTextSize
             color = placeTextColor
+            textSize = placeTextSize
             getTextBounds(maxRowNumber, 0, maxRowNumber.length, placeTextBounds)
         }
         placeBGPaint.color = placeBgColor
         rowNumberPaint.apply {
             val maxRowNumberLength = "$maxRowNumber ряд"
-            textSize = rowNumberTextSize
             color = rowNumberTextColor
+            textSize = rowNumberTextSize
             typeface = rowNumberTypeFace
             getTextBounds(maxRowNumberLength, 0, maxRowNumberLength.length, rowNumberBounds)
         }
-        placeNumberSize = maxOf(placeTextBounds.width(), placeTextBounds.height())
-        placeSize = placeTextPadding * 2 + placeNumberSize.dp
+        placeNumberSize = minOf(placeTextBounds.width(), placeTextBounds.height()).dp
+        placeSize = placeTextPadding * 2 + placeNumberSize
         rowNumberColumnWidth = rowNumberBounds.width().toFloat()
         setBackgroundColor(Color.CYAN)//todo ctrl+y
     }
 
     private fun handleClick(event: MotionEvent) {
-        val clickX = event.x
-        val clickY = event.y
+        val clickX = event.x + scrollX
+        val clickY = event.y + scrollY
 
-        //todo в зависимисти от позиции клика можно уменьшить область поиска
-        places.forEach { row ->
-            row.find { it.rect.inBounds(clickX, clickY) }
-                ?.let { place ->
-                    if (place.state != PlaceState.EMPTY && place.state != PlaceState.RESERVED) {
-                        place.state = if (place.state == PlaceState.PICKED) {
-                            PlaceState.FREE
-                        } else {
-                            PlaceState.PICKED
-                        }
-                        invalidate()
-                    }
+        places.find { row ->
+            row.find { it.rect.inYBounds(clickY) } != null
+        }?.let { row ->
+            row.find { it.rect.inXBounds(clickX) }?.let { place ->
+                if (place.state != PlaceState.EMPTY && place.state != PlaceState.RESERVED) {
+                    place.state = if (place.state == PlaceState.PICKED) PlaceState.FREE else PlaceState.PICKED
+                    invalidate()
                 }
+            }
         }
     }
 
@@ -421,7 +404,11 @@ class PlacesView : View {
         this.bottom = bottom.toInt()
     }
 
-    private fun Rect.inBounds(x: Float, y: Float) = x >= left && x <= right && y >= top && y <= bottom
+    private fun Rect.inYBounds(y: Float) = y >= top && y <= bottom
+
+    private fun Rect.inXBounds(x: Float) = x >= left && x <= right
+
+    private val MotionEvent.duration get() = eventTime - downTime
 
     private inline val Number.sp: Float
         get() = TypedValue.applyDimension(
