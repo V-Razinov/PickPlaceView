@@ -34,6 +34,7 @@ class PlacesView : View {
 
     private val screenText = "Экран"
     private val TAP_TIME = 150
+    private val SCROLL_START_TIME = ViewConfiguration.getTapTimeout()
 
     private var screenTextColor = Color.WHITE
     private var screenBgColor = Color.RED
@@ -81,8 +82,8 @@ class PlacesView : View {
     private var maxX = 0f
     private var maxY = 0f
 
-    private var places: List<List<Place>> = emptyList()
-    private var onPlaceClick: (Place) -> Unit = { }
+    private var places: List<MutableList<BasePlace>> = emptyList()
+    private var onPlaceClick: (BasePlace) -> Unit = { }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -163,7 +164,7 @@ class PlacesView : View {
                     }
                     val pointX = startX + placeMargin
 
-                    if (place.state != PlaceState.EMPTY) {
+                    if (place.bgColor != null) {
                         val index = place.column.toString()
                         val endPointX = pointX + placeSize
                         val endPointT = pointY + placeSize
@@ -172,12 +173,12 @@ class PlacesView : View {
                             pointX, pointY,
                             endPointX, endPointT,
                             placeCornerRadius, placeCornerRadius,
-                            placeBGPaint.applyState(place.state)
+                            placeBGPaint.apply { color = place.bgColor }
                         )
-                        if (needToShowText(place.state)) {
+                        if (needToShowText(place)) {
                             placeTextPaint.apply {
                                 getTextBounds(index, 0, index.length, placeTextBounds)
-                                color = getPlaceTextColor(place.state)
+                                color = placeTextColor
                             }
                             val placeTextX = pointX + placeSize / 2 - placeTextBounds.width() / 2
                             val placeTextY = pointY + placeSize / 2 + placeTextBounds.height() / 2
@@ -213,7 +214,7 @@ class PlacesView : View {
                 true
             }
             MotionEvent.ACTION_MOVE -> {
-                if (event.duration < TAP_TIME) {
+                if (event.duration < SCROLL_START_TIME) {
                     startX = event.x
                     startY = event.y
                     return true
@@ -254,7 +255,7 @@ class PlacesView : View {
         }
     }
 
-    fun setData(places: List<List<Place>>) {
+    fun setData(places: List<MutableList<BasePlace>>) {
         this.places = places
         scrollX = 0
         scrollY = 0
@@ -262,15 +263,15 @@ class PlacesView : View {
         requestLayout()
     }
 
-    fun setOnPlaceClickAction(onPlaceClick: (Place) -> Unit) {
+    fun setOnPlaceClickAction(onPlaceClick: (BasePlace) -> Unit) {
         this.onPlaceClick = onPlaceClick
     }
 
-    fun getPlaces(state: PlaceState = PlaceState.PICKED): List<Place> {
-        val places = mutableListOf<Place>()
+    fun <T>getPlaces(clazz: Class<T>): List<BasePlace> {
+        val places = mutableListOf<BasePlace>()
         this.places.forEach { row ->
             row.forEach { place ->
-                if (place.state == state) {
+                if (clazz.isInstance(place)) {
                     places.add(place)
                 }
             }
@@ -395,46 +396,28 @@ class PlacesView : View {
         val clickX = event.x + scrollX
         val clickY = event.y + scrollY
         //Ищем ряд
-        places.find { row -> row.find { it.rect.inYBounds(clickY) } != null }?.let { row ->
-            //Ищем место
-            row.find { it.rect.inXBounds(clickX) }?.let { place ->
-                if (place.state != PlaceState.EMPTY) {
-                    if (place.state != PlaceState.RESERVED) {
-                        place.state = if (place.state == PlaceState.PICKED) PlaceState.FREE else PlaceState.PICKED
-                        invalidate()
-                    }
-                    onPlaceClick(place)
-                }
-            }
+        val row = places.find { row ->
+            row.find { it.rect.inYBounds(clickY) } != null
         }
-    }
-
-    private fun getPlaceTextColor(state: PlaceState): Int {
-        return when(state) {
-            PlaceState.EMPTY -> Color.TRANSPARENT
-            PlaceState.PICKED -> placeTextColor
-            else -> if (placeShowTextAlways) placeTextColor else Color.TRANSPARENT
+        val index = row?.indexOfFirst { it.rect.inXBounds(clickX) && it.isClickable() }
+        if (index != null && index != -1) {
+            val place = row[index]
+            onPlaceClick(place)
+            place.getNextPlaceOnClick()?.let { nextPlace ->
+                row.removeAt(index)
+                row.add(index, nextPlace)
+                invalidate()
+            }
         }
     }
 
     private fun getTypeFace(typeFaceInt: Int) = Typeface.create(Typeface.DEFAULT, typeFaceInt)
 
-    private fun needToShowText(state: PlaceState): Boolean {
-        if (state == PlaceState.EMPTY)
+    private fun needToShowText(place: BasePlace): Boolean {
+        if (place.bgColor == null) {
             return false
-        if (placeShowTextAlways || state == PlaceState.PICKED)
-            return true
-        return false
-    }
-
-    private fun Paint.applyState(state: PlaceState): Paint {
-        color = when (state) {
-            PlaceState.FREE -> placeFreeColor
-            PlaceState.RESERVED -> placeReservedColor
-            PlaceState.PICKED -> placePickedColor
-            PlaceState.EMPTY -> Color.TRANSPARENT
         }
-        return this
+        return if (placeShowTextAlways) true else place.showText()
     }
 
     private fun Rect.setBounds(left: Float, top: Float, right: Float, bottom: Float) {
@@ -451,16 +434,8 @@ class PlacesView : View {
     private val MotionEvent.duration get() = eventTime - downTime
 
     private inline val Number.sp: Float
-        get() = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_SP,
-            this.toFloat(),
-            context.resources.displayMetrics
-        )
+        get() = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, this.toFloat(), context.resources.displayMetrics)
 
     private inline val Number.dp: Float
-        get() = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            this.toFloat(),
-            context.resources.displayMetrics
-        )
+        get() = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, this.toFloat(), context.resources.displayMetrics)
 }

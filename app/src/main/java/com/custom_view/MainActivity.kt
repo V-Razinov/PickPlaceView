@@ -15,7 +15,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         pick_place_view.setData(generateData(15, 15))
         pick_place_view.setOnPlaceClickAction {
-            Toast.makeText(this, "ряд: ${it.row}, место: ${it.column} - ${it.state.name}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "ряд: ${it.row}, место: ${it.column} - ${it.name}", Toast.LENGTH_SHORT).show()
         }
         add_empty.setOnCheckedChangeListener { _, isChecked ->
             addEmptyPlaces = isChecked
@@ -30,11 +30,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun generateData(rows: Int, columns: Int) = mutableListOf<List<Place>>().apply {
+    private fun generateData(rows: Int, columns: Int) = mutableListOf<MutableList<BasePlace>>().apply {
         repeat(rows) { rowIndex ->
-            val row = mutableListOf<Place>()
+            val row = mutableListOf<BasePlace>()
             repeat(columns) { columnIndex ->
-                row.add(Place(PlaceState.getRandomState(addEmptyPlaces), column = columnIndex + 1, row = rowIndex + 1))
+                val rand = Random
+                val place = when(rand.nextInt(0, if (addEmptyPlaces) 4 else 3)) {
+                    0 -> FreePlace(rowIndex + 1, columnIndex + 1)
+                    1 -> ReservedPlace(rowIndex + 1, columnIndex + 1)
+                    2 -> PickedPlace(rowIndex + 1, columnIndex + 1)
+                    else -> EmptyPlace(rowIndex + 1, columnIndex + 1)
+                }
+                row.add(place)
             }
             add(row)
         }

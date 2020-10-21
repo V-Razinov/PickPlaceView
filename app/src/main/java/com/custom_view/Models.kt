@@ -5,31 +5,42 @@ import android.graphics.Rect
 import androidx.annotation.ColorInt
 import kotlin.random.Random
 
-data class Place(
-    var state: PlaceState,
+abstract class BasePlace(
+    val name: String,
+    val row: Int,
     val column: Int,
-    val row: Int
+    @ColorInt val bgColor: Int? // set to null if no need to show this place
 ) {
     val rect = Rect(0, 0, 0, 0)
+    abstract fun showText(): Boolean // if "showPlaceNumberAlways" is set to false
+    abstract fun getNextPlaceOnClick() : BasePlace?
+    open fun isClickable(): Boolean = bgColor != null
 }
 
-enum class PlaceState(@ColorInt val color: Int) {
-    FREE(Color.LTGRAY), //свободное место
-    RESERVED(Color.RED), //зарезервированное
-    PICKED(Color.GREEN), //купленное или выбранное
-    EMPTY(Color.TRANSPARENT); //для пустого места
+class FreePlace(row: Int, column: Int) :
+    BasePlace(name = "Свободное", row = row, column = column, bgColor = Color.LTGRAY) {
+    override fun showText(): Boolean = false
+    override fun isClickable(): Boolean = true
+    override fun getNextPlaceOnClick(): BasePlace = PickedPlace(row, column)
+}
 
-    fun getNextState() : PlaceState {
-        val states = values()
-        val indexCurrent = states.indexOfFirst { it.name == this.name }
-        val nextState = if (indexCurrent < states.size - 1) states[indexCurrent + 1] else states[0]
-        return if (nextState != EMPTY) nextState else nextState.getNextState()
-    }
+class ReservedPlace(row: Int, column: Int) :
+    BasePlace(name = "Зарезервированное", row = row, column = column, bgColor = Color.RED) {
+    override fun showText(): Boolean = false
+    override fun isClickable(): Boolean = false
+    override fun getNextPlaceOnClick(): BasePlace? = null
+}
 
-    companion object {
-        fun getRandomState(includeEmpty: Boolean): PlaceState {
-            val states = values()
-            return enumValueOf(states[Random.nextInt(0, if (includeEmpty) states.size else states.size - 1)].name)
-        }
-    }
+class PickedPlace(row: Int, column: Int) :
+    BasePlace(name = "Выбранное", row = row, column = column, bgColor = Color.GREEN) {
+    override fun showText(): Boolean = true
+    override fun isClickable(): Boolean = true
+    override fun getNextPlaceOnClick(): BasePlace = FreePlace(row, column)
+}
+
+class EmptyPlace(row: Int, column: Int) :
+    BasePlace(name = "Отсутствующее", row = row, column = column, bgColor = null) {
+    override fun showText(): Boolean = false
+    override fun isClickable(): Boolean = false
+    override fun getNextPlaceOnClick(): BasePlace? = null
 }
