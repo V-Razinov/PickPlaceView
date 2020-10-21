@@ -15,10 +15,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         custom:placeCornerRadius="12dp"
-        custom:placeFreeColor="@android:color/darker_gray"
         custom:placeMargin="4dp"
-        custom:placePickedColor="@android:color/holo_green_light"
-        custom:placeReservedColor="@android:color/holo_red_light"
         custom:placeShowNumbersAlways="false"
         custom:placeTextPadding="8dp"
         custom:placeTextSize="18sp"
@@ -31,23 +28,13 @@
         custom:screenTextStyle="bold" />
 
     <CheckBox
-        android:id="@+id/add_empty"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/pick_place_view"
-        android:buttonTint="@color/white"
-        android:checked="true"
-        android:text="Добавить пустые места"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"/>
-
-    <CheckBox
         android:id="@+id/show_always_cb"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:buttonTint="@color/white"
         android:text="Показывать номер всегда"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/add_empty" />
+        app:layout_constraintTop_toBottomOf="@+id/pick_place_view" />
 
     <View
         android:id="@+id/separator1"
@@ -56,6 +43,16 @@
         android:background="@color/white"
         app:layout_constraintTop_toBottomOf="@+id/show_always_cb" />
 
+    <CheckBox
+        android:id="@+id/add_empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:buttonTint="@color/white"
+        android:checked="true"
+        android:text="Добавить пустые места"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/separator1" />
+
     <EditText
         android:id="@+id/rows"
         android:layout_width="0dp"
@@ -63,11 +60,12 @@
         android:ellipsize="end"
         android:hint="Кол-во рядов"
         android:inputType="numberDecimal"
-        android:maxLength="1000"
+        android:lines="1"
+        android:maxLength="3"
         app:layout_constraintEnd_toStartOf="@+id/columns"
         app:layout_constraintHorizontal_chainStyle="spread"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/separator1" />
+        app:layout_constraintTop_toBottomOf="@+id/add_empty" />
 
     <EditText
         android:id="@+id/columns"
@@ -76,10 +74,11 @@
         android:ellipsize="end"
         android:hint="Кол-во мест в ряду"
         android:inputType="numberDecimal"
-        android:maxLength="1000"
+        android:lines="1"
+        android:maxLength="3"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/rows"
-        app:layout_constraintTop_toBottomOf="@+id/separator1" />
+        app:layout_constraintTop_toBottomOf="@+id/add_empty" />
 
     <Button
         android:id="@+id/update"

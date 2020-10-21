@@ -3,7 +3,6 @@ package com.custom_view
 import android.graphics.Color
 import android.graphics.Rect
 import androidx.annotation.ColorInt
-import kotlin.random.Random
 
 abstract class BasePlace(
     val name: String,
@@ -15,6 +14,7 @@ abstract class BasePlace(
     abstract fun showText(): Boolean // if "showPlaceNumberAlways" is set to false
     abstract fun getNextPlaceOnClick() : BasePlace?
     open fun isClickable(): Boolean = bgColor != null
+    override fun toString(): String = "$name - ряд: $row, место: $column"
 }
 
 class FreePlace(row: Int, column: Int) :
@@ -27,7 +27,7 @@ class FreePlace(row: Int, column: Int) :
 class ReservedPlace(row: Int, column: Int) :
     BasePlace(name = "Зарезервированное", row = row, column = column, bgColor = Color.RED) {
     override fun showText(): Boolean = false
-    override fun isClickable(): Boolean = false
+    override fun isClickable(): Boolean = true
     override fun getNextPlaceOnClick(): BasePlace? = null
 }
 

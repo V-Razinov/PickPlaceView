@@ -40,9 +40,6 @@ class PlacesView : View {
     private var screenBgColor = Color.RED
     private var placeTextColor = Color.BLACK
     private var placeBgColor = Color.LTGRAY
-    private var placeFreeColor = Color.LTGRAY
-    private var placeReservedColor = Color.RED
-    private var placePickedColor = Color.GREEN
     private var rowNumberTextColor = Color.BLACK
 
     private var placeShowTextAlways = true
@@ -60,9 +57,9 @@ class PlacesView : View {
     private var rowAdditionNumberMargin = 0.dp
     private val rowNumberRealMargin get() = rowNumberMargin + rowAdditionNumberMargin
 
-    private var screenTextTypeFace = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-    private var placeTypeFace = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-    private var rowNumberTypeFace = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+    private var screenTextTypeFace = getTypeFace(Typeface.BOLD)
+    private var placeTypeFace = getTypeFace(Typeface.NORMAL)
+    private var rowNumberTypeFace = getTypeFace(Typeface.ITALIC)
 
     private var placeNumberSize = 0f
     private var placeSize = 0f
@@ -83,27 +80,29 @@ class PlacesView : View {
     private var maxY = 0f
 
     private var places: List<MutableList<BasePlace>> = emptyList()
-    private var onPlaceClick: (BasePlace) -> Unit = { }
+    private var onPlaceClick: (BasePlace) -> Unit = {}
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        val maxColumns = places.maxOf { it.size }
+        //------------------Ширина/Высота нашего виджета------------------
+        val maxColumns = places.maxOfOrNull { it.size } ?: 0
         val w = (rowNumberColumnWidth + rowNumberMargin) * 2 +
                 maxColumns * (placeSize + placeMargin) + placeMargin
         val h = screenTextPadding * 2 + screenTextBounds.height() +
                 places.size * (placeSize + placeMargin) + placeMargin
 
+        //------------------Размер который займет наш виджет------------------
         val resolvedWidth = resolveSize(w.toInt(), widthMeasureSpec)
         val resolvedHeight = resolveSize(h.toInt(), heightMeasureSpec)
 
+        //------------------Дополнительный отступ между "Какой-то" ряд и местами------------------
         val diffs = resolvedWidth - w
         rowAdditionNumberMargin = if (diffs > 0) diffs / 2 else 0f
-
         realWidth = w + rowAdditionNumberMargin * 2
 
+        //------------------Включаем скроллы если надо + вычисляем макс и мин позиции для скролла------------------
         enableHorizontalScroll = w > resolvedWidth
         enableVerticalScroll = h > resolvedHeight
-
         if (enableHorizontalScroll) {
             abs(w - resolvedWidth).let {
                 if (it > 0) {
@@ -128,6 +127,7 @@ class PlacesView : View {
         canvas.apply {
             var startX = 0f
             var startY = 0f
+            //-------------------Надпись "Экран" с фоном--------------------
             val screenBgHeight = (startY + screenTextBounds.height() + screenTextPadding * 2)
             val screenBgWidth = startX + realWidth
             val screenTextX = realWidth / 2 - screenTextBounds.width().toFloat() / 2
@@ -144,26 +144,30 @@ class PlacesView : View {
                 screenTextX, screenTextY,
                 screenTextPaint
             )
+
+            //------------------Ряд и места------------------
             startY += screenBgHeight
             places.forEachIndexed { indexRow, row ->
                 if (indexRow != 0) {
                     startY += placeSize + placeMargin
                 }
 
+                //------------------"Какой-то" ряд------------------
                 val rowText = "${row.firstOrNull()?.row ?: indexRow + 1} ряд"//todo
                 val rowNumberY = startY + placeMargin + placeSize / 2 + rowNumberBounds.height() / 2
 
                 drawText(rowText, 0, rowText.length, 0f, rowNumberY, rowNumberPaint)
                 startX = 0f + rowNumberBounds.width() + rowNumberRealMargin
 
+                //------------------Места------------------
                 val pointY = startY + placeMargin
-
                 row.forEachIndexed { indexPlace, place ->
                     if (indexPlace != 0) {
                         startX += placeSize + placeMargin
                     }
                     val pointX = startX + placeMargin
 
+                    //------------------Если цвет фона не null - рисуем------------------
                     if (place.bgColor != null) {
                         val index = place.column.toString()
                         val endPointX = pointX + placeSize
@@ -175,6 +179,8 @@ class PlacesView : View {
                             placeCornerRadius, placeCornerRadius,
                             placeBGPaint.apply { color = place.bgColor }
                         )
+
+                        //------------------Если нужно показать номер------------------
                         if (needToShowText(place)) {
                             placeTextPaint.apply {
                                 getTextBounds(index, 0, index.length, placeTextBounds)
@@ -191,6 +197,8 @@ class PlacesView : View {
                         }
                     }
                 }
+
+                //------------------"Какой-то" ряд------------------
                 startX += placeMargin * 2 + placeSize + rowNumberRealMargin
                 rowNumberPaint.getTextBounds(rowText, 0, rowText.length, rowTextBound)
                 drawText(
@@ -240,7 +248,7 @@ class PlacesView : View {
             MotionEvent.ACTION_UP -> {
                 startX = NaN
                 if (event.duration < TAP_TIME) {
-                    handleClick(event)
+                    handleClick(event.x + scrollX, event.y + scrollY)
                     return true
                 }
                 false
@@ -267,17 +275,15 @@ class PlacesView : View {
         this.onPlaceClick = onPlaceClick
     }
 
-    fun <T>getPlaces(clazz: Class<T>): List<BasePlace> {
+    fun <T: BasePlace>getPlaces(clazz: Class<T>): List<BasePlace> {
         val places = mutableListOf<BasePlace>()
         this.places.forEach { row ->
-            row.forEach { place ->
-                if (clazz.isInstance(place)) {
-                    places.add(place)
-                }
-            }
+            places.addAll(row.filter { clazz.isInstance(it) })
         }
         return places
     }
+
+    fun getPlaces() = places
 
     fun setShowPlaceNumberAlways(always: Boolean) {
         placeShowTextAlways = always
@@ -334,18 +340,6 @@ class PlacesView : View {
                 R.styleable.PlacesView_placeShowNumbersAlways,
                 placeShowTextAlways
             )
-            placeFreeColor = getColor(
-                R.styleable.PlacesView_placeFreeColor,
-                placeFreeColor
-            )
-            placeReservedColor = getColor(
-                R.styleable.PlacesView_placeReservedColor,
-                placeReservedColor
-            )
-            placePickedColor = getColor(
-                R.styleable.PlacesView_placePickedColor,
-                placePickedColor
-            )
             rowNumberMargin = getDimensionPixelOffset(
                 R.styleable.PlacesView_rowNumberMargin,
                 rowNumberMargin.toInt()
@@ -392,22 +386,22 @@ class PlacesView : View {
         rowNumberColumnWidth = rowNumberBounds.width().toFloat()
     }
 
-    private fun handleClick(event: MotionEvent) {
-        val clickX = event.x + scrollX
-        val clickY = event.y + scrollY
+    private fun handleClick(clickX: Float, clickY: Float) {
         //Ищем ряд
         val row = places.find { row ->
             row.find { it.rect.inYBounds(clickY) } != null
         }
+        //Ищем индекс мместа
         val index = row?.indexOfFirst { it.rect.inXBounds(clickX) && it.isClickable() }
         if (index != null && index != -1) {
             val place = row[index]
-            onPlaceClick(place)
+            //Если при нажатии есть на что заменить - меняем
             place.getNextPlaceOnClick()?.let { nextPlace ->
                 row.removeAt(index)
                 row.add(index, nextPlace)
                 invalidate()
             }
+            onPlaceClick(row[index])
         }
     }
 
