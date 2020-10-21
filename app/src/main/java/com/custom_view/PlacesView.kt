@@ -33,7 +33,7 @@ class PlacesView : View {
     private val screenTextBounds = Rect()
 
     private val screenText = "Экран"
-    private val TAP_TIME = ViewConfiguration.getTapTimeout()
+    private val TAP_TIME = 150
 
     private var screenTextColor = Color.WHITE
     private var screenBgColor = Color.RED
@@ -148,7 +148,8 @@ class PlacesView : View {
                 if (indexRow != 0) {
                     startY += placeSize + placeMargin
                 }
-                val rowText = "${indexRow + 1} ряд"//todo
+
+                val rowText = "${row.firstOrNull()?.row ?: indexRow + 1} ряд"//todo
                 val rowNumberY = startY + placeMargin + placeSize / 2 + rowNumberBounds.height() / 2
 
                 drawText(rowText, 0, rowText.length, 0f, rowNumberY, rowNumberPaint)
@@ -163,7 +164,7 @@ class PlacesView : View {
                     val pointX = startX + placeMargin
 
                     if (place.state != PlaceState.EMPTY) {
-                        val index = (indexPlace + 1).toString()
+                        val index = place.column.toString()
                         val endPointX = pointX + placeSize
                         val endPointT = pointY + placeSize
                         place.rect.setBounds(pointX, pointY, endPointX, endPointT)
@@ -213,6 +214,8 @@ class PlacesView : View {
             }
             MotionEvent.ACTION_MOVE -> {
                 if (event.duration < TAP_TIME) {
+                    startX = event.x
+                    startY = event.y
                     return true
                 }
                 if (enableHorizontalScroll) {
@@ -369,7 +372,7 @@ class PlacesView : View {
             typeface = screenTextTypeFace
             getTextBounds(screenText, 0, screenText.length, screenTextBounds)
         }
-        val maxRowNumber = (places.size - 1).toString()
+        val maxRowNumber = places.firstOrNull()?.size?.toString() ?: ""
         placeTextPaint.apply {
             color = placeTextColor
             textSize = placeTextSize
@@ -386,7 +389,6 @@ class PlacesView : View {
         placeNumberSize = minOf(placeTextBounds.width(), placeTextBounds.height()).dp
         placeSize = placeTextPadding * 2 + placeNumberSize
         rowNumberColumnWidth = rowNumberBounds.width().toFloat()
-        setBackgroundColor(Color.CYAN)//todo ctrl+y
     }
 
     private fun handleClick(event: MotionEvent) {
@@ -397,11 +399,11 @@ class PlacesView : View {
             //Ищем место
             row.find { it.rect.inXBounds(clickX) }?.let { place ->
                 if (place.state != PlaceState.EMPTY) {
-                    onPlaceClick(place)
                     if (place.state != PlaceState.RESERVED) {
                         place.state = if (place.state == PlaceState.PICKED) PlaceState.FREE else PlaceState.PICKED
                         invalidate()
                     }
+                    onPlaceClick(place)
                 }
             }
         }
