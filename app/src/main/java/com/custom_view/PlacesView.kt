@@ -34,7 +34,6 @@ class PlacesView : View {
 
     private val screenText = "Экран"
     private val TAP_TIME = 150
-    private val SCROLL_START_TIME = ViewConfiguration.getTapTimeout()
 
     private var screenTextColor = Color.WHITE
     private var screenBgColor = Color.RED
