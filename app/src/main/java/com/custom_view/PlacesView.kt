@@ -240,11 +240,11 @@ class PlacesView : View {
                 true
             }
             MotionEvent.ACTION_UP -> {
+                startX = NaN
                 if (event.duration < TAP_TIME ) {
                     handleClick(event.x + scrollX, event.y + scrollY)
                     return true
                 }
-                startX = NaN
                 false
             }
             MotionEvent.ACTION_CANCEL -> {
