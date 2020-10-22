@@ -8,11 +8,14 @@ import java.lang.Exception
 import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
+
     private var addEmptyPlaces = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        rows.setText("10")
+        columns.setText("10")
         pick_place_view.setData(generateData(10, 10))
         pick_place_view.setOnPlaceClickAction {
             Toast.makeText(this, it.toString(), Toast.LENGTH_SHORT).show()

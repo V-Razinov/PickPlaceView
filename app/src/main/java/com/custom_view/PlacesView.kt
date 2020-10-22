@@ -222,11 +222,6 @@ class PlacesView : View {
                 true
             }
             MotionEvent.ACTION_MOVE -> {
-                if (event.duration < SCROLL_START_TIME) {
-                    startX = event.x
-                    startY = event.y
-                    return true
-                }
                 if (enableHorizontalScroll) {
                     val nextX = startScrollX + startX - event.x
                     scrollX = when {
@@ -246,11 +241,11 @@ class PlacesView : View {
                 true
             }
             MotionEvent.ACTION_UP -> {
-                startX = NaN
-                if (event.duration < TAP_TIME) {
+                if (event.duration < TAP_TIME ) {
                     handleClick(event.x + scrollX, event.y + scrollY)
                     return true
                 }
+                startX = NaN
                 false
             }
             MotionEvent.ACTION_CANCEL -> {

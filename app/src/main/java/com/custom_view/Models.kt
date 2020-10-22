@@ -11,9 +11,12 @@ abstract class BasePlace(
     @ColorInt val bgColor: Int? // set to null if no need to show this place
 ) {
     val rect = Rect(0, 0, 0, 0)
+
     abstract fun showText(): Boolean // if "showPlaceNumberAlways" is set to false
     abstract fun getNextPlaceOnClick() : BasePlace?
+
     open fun isClickable(): Boolean = bgColor != null
+
     override fun toString(): String = "$name - ряд: $row, место: $column"
 }
 
