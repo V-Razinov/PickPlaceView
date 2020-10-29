@@ -2,6 +2,7 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:custom="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/holo_blue_dark">
@@ -26,7 +27,8 @@
         custom:screenTextColor="@android:color/white"
         custom:screenTextPadding="16dp"
         custom:screenTextSize="28sp"
-        custom:screenTextStyle="bold" />
+        custom:screenTextStyle="bold"
+        tools:layout_height="200dp" />
 
     <CheckBox
         android:id="@+id/show_always_cb"
@@ -34,7 +36,9 @@
         android:layout_height="wrap_content"
         android:buttonTint="@color/white"
         android:text="Показывать номер всегда"
-        app:layout_constraintBottom_toTopOf="@+id/add_empty"
+        app:layout_constraintBottom_toTopOf="@+id/rows"
+        app:layout_constraintEnd_toStartOf="@+id/add_empty"
+        app:layout_constraintHorizontal_chainStyle="spread"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/pick_place_view" />
 
@@ -45,9 +49,9 @@
         android:buttonTint="@color/white"
         android:checked="true"
         android:text="Добавить пустые места"
-        app:layout_constraintBottom_toTopOf="@+id/rows"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/show_always_cb" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/show_always_cb"
+        app:layout_constraintTop_toTopOf="@+id/show_always_cb" />
 
     <EditText
         android:id="@+id/rows"
@@ -62,7 +66,7 @@
         app:layout_constraintEnd_toStartOf="@+id/columns"
         app:layout_constraintHorizontal_chainStyle="spread"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/add_empty" />
+        app:layout_constraintTop_toBottomOf="@+id/show_always_cb" />
 
     <EditText
         android:id="@+id/columns"
@@ -72,8 +76,10 @@
         android:hint="Кол-во мест в ряду"
         android:inputType="numberDecimal"
         android:lines="1"
+        android:maxLength="3"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/rows"
+        app:layout_constraintTop_toBottomOf="@+id/add_empty"
         app:layout_constraintTop_toTopOf="@+id/rows" />
 
     <Button
